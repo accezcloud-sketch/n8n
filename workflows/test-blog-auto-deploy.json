@@ -1,0 +1,879 @@
+{
+  "name": "Test Blog Auto Deploy",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Start Blog Deploy",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "16fsCY4tvysc0oGanYzYHYDY59NMM_DfaeT1j9lPFyT0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Topics"
+        },
+        "options": {}
+      },
+      "id": "read-sheets",
+      "name": "Read Topics from Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        304,
+        304
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aPlOnNF1lEPwYkVQ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (!items || items.length === 0) {\n  throw new Error('No data received from Google Sheets. Check the sheet ID and permissions.');\n}\n\nfor (let i = 0; i < items.length; i++) {\n  const row = items[i].json;\n  const keys = Object.keys(row).filter(k => k !== 'row_number');\n  const colA = keys[0];\n  const colB = keys[1];\n  const colC = keys.length > 2 ? keys[2] : null;\n\n  if (colB && row[colB] && row[colB].toString().toLowerCase().trim() === 'pending') {\n    const topic = row[colA].toString();\n    const topicSlug = topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 60);\n\n    return [{\n      json: {\n        topic,\n        rowNumber: row.row_number || (i + 2),\n        topicSlug,\n        colA,\n        colB,\n        colC\n      }\n    }];\n  }\n}\n\nthrow new Error('No pending topics found in the Google Sheet.');\n"
+      },
+      "id": "find-pending",
+      "name": "Find First Pending Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a bilingual blog post for Accez.cloud about: {{ $json.topic }}.\n\nCRITICAL FRONTMATTER RULES: ALL string values MUST be wrapped in double quotes, even if they contain colons, apostrophes, or quotes. Escape any internal double quotes with a backslash. Do not use unescaped colons inside string values.\n\nStart the file with this exact MDX frontmatter (replace the bracketed parts):\n\n---\ntitle: \"[English title here — no colons]\"\ntitleAr: \"[Arabic title here — no colons]\"\nexcerpt: \"[English excerpt here — no colons]\"\nexcerptAr: \"[Arabic excerpt here — no colons]\"\ndate: \"{{ $now.format('yyyy-MM-dd') }}\"\nauthor: \"Accez Team\"\nauthorAr: \"فريق أكسيز\"\ncoverImage: \"/images/blog/pm-default.jpg\"\ncoverImageAlt: \"[descriptive alt text without colons]\"\ncategory: \"Industry Insights\"\ncategoryAr: \"رؤى الصناعة\"\ntags: [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"]\ntagsAr: [\"وسم1\", \"وسم2\", \"وسم3\", \"وسم4\", \"وسم5\"]\n---\n\nAfter the closing --- of the frontmatter, output the article body following this EXACT structure in this EXACT order. Do NOT add a title heading (#) at the top — start directly with prose.\n\n=== STRUCTURE (follow exactly) ===\n\n1. HOOK PARAGRAPH (no heading): 2-3 sentences in plain prose presenting a relatable problem or paradox that property managers face. Must hook immediately. Never start with generic phrases like \"In the world of real estate...\" or \"In today's market...\".\n\n2. TRANSITION PARAGRAPH (no heading): One paragraph expanding on the problem.\n\n3. ## [First main section heading] — a deep dive into what breaks and why. Write mostly prose paragraphs. Bullet points are allowed only when listing 4+ items. Bold maximum 2-3 critical phrases in this section. Include at least one real statistic with a source.\n\n4. ## [Second main section heading, e.g. \"What High Performers Do Differently\"] — Use ### subheadings for each point. Each subsection must be 2-3 paragraphs of prose, NOT bullet lists. Bold maximum 2-3 critical phrases total in this section. Include at least one real statistic with a source.\n\n5. ## [Saudi Arabia specific section heading] — Must reference at least TWO of these specifically: Vision 2030, Ejar compliance, WhatsApp adoption (77%+ rate in KSA), GASTAT statistics, Mada/SADAD payments, seasonal demand around Hajj/Umrah. Write in flowing prose, not lists. Include real statistics with sources.\n\n6. ## How Accez.Cloud Helps You [topic-relevant verb] — MANDATORY section. This is the first time Accez.Cloud is introduced in the article. List 5-6 specific Accez.Cloud features as bullet points. Each bullet must directly solve a problem mentioned earlier in the article. End the section with one closing sentence about growth.\n\n7. ## Key Takeaways — EXACTLY 6 to 8 bullet points summarizing the article's main points.\n\n8. CTA line: One single line ending with [Visit portal.accez.cloud](https://portal.accez.cloud)\n\n9. <!-- AR --> on its own line.\n\n10. Complete Arabic translation following the EXACT same structure (steps 1-8 in Arabic). Same rules: no title heading, hook first, ## and ### only, prose-first, identical section order, mandatory \"How Accez.Cloud Helps You\" section before Key Takeaways, CTA at the end.\n\n=== TONE & FORMATTING RULES ===\n\n- Write like a knowledgeable industry consultant who understands Saudi property management deeply.\n- Never introduce Accez.Cloud before section 6 in either language.\n- Use ## and ### only — NEVER use #### or deeper.\n- Prose-first. Bullets only when listing 4+ items.\n- Bold a maximum of 2-3 phrases per section, only the most important ones. Do not over-bold.\n- Include at least one real statistic with a source per major section (sections 3, 4, 5).\n- Opening must hook immediately. No generic openers.\n- Length: 1500-1800 words English, 1500-1800 words Arabic.\n\n=== OUTPUT RULES ===\n\nOutput raw markdown only. No code fences (no ``` anywhere). No explanation. Nothing before the frontmatter. Nothing after the Arabic CTA. The very first character of the output must be the opening --- of the frontmatter.",
+        "batching": {}
+      },
+      "id": "llm-chain",
+      "name": "Generate Blog Post with Gemini",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        912,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "id": "gemini-model",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        912,
+        528
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ctwWGjnx3iat3Soe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.text;\n\nif (!text) {\n  throw new Error('No content received from Gemini. Check the AI model response.');\n}\n\nlet cleanText = text.trim();\nif (cleanText.startsWith('```')) {\n  cleanText = cleanText.replace(/^```(?:md|markdown|mdx)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\n// Defensive YAML frontmatter sanitizer:\n// Ensures string values for title/titleAr/excerpt/excerptAr/coverImageAlt/category/categoryAr/author/authorAr\n// are always wrapped in double quotes, even if Gemini forgot.\nfunction quoteFrontmatterField(content, fieldName) {\n  // Match: fieldName: <anything until end of line>\n  // Skip if value already starts with a double quote\n  const regex = new RegExp('^(' + fieldName + ':)[ \\\\t]*(.*)$', 'm');\n  return content.replace(regex, function(match, key, value) {\n    const trimmed = value.trim();\n    if (!trimmed) return match;\n    // Already properly quoted\n    if (trimmed.startsWith('\"') && trimmed.endsWith('\"')) return match;\n    // Strip wrapping single quotes if present\n    let inner = trimmed;\n    if (inner.startsWith(\"'\") && inner.endsWith(\"'\")) {\n      inner = inner.slice(1, -1);\n    }\n    // Escape any internal double quotes\n    inner = inner.replace(/\\\\\"/g, '\"').replace(/\"/g, '\\\\\"');\n    return key + ' \"' + inner + '\"';\n  });\n}\n\n// Split frontmatter from body to avoid touching content\nconst fmMatch = cleanText.match(/^(---\\n)([\\s\\S]*?)(\\n---)([\\s\\S]*)$/);\nif (fmMatch) {\n  let frontmatter = fmMatch[2];\n  const fieldsToFix = ['title', 'titleAr', 'excerpt', 'excerptAr', 'coverImageAlt', 'category', 'categoryAr', 'author', 'authorAr'];\n  for (const field of fieldsToFix) {\n    frontmatter = quoteFrontmatterField(frontmatter, field);\n  }\n  cleanText = fmMatch[1] + frontmatter + fmMatch[3] + fmMatch[4];\n}\n\n// Extract the article title from the (now sanitized) frontmatter\nlet articleTitle = '';\nconst titleMatch = cleanText.match(/^title:\\s*\"([^\"]*)\"/m);\nif (titleMatch) { articleTitle = titleMatch[1]; }\n\nconst topicData = $('Find First Pending Topic').first().json;\n\n// Build a generic image search query from frontmatter tags (skip brand-y names)\nconst BRAND_BLOCKLIST = /airbnb|booking\\.com|booking|accez|whatsapp|mada|sadad|ejar|gastat/i;\nlet searchQuery = 'hospitality business';\nconst tagsMatch = cleanText.match(/^tags:\\s*\\[([^\\]]*)\\]/m);\nif (tagsMatch) {\n  const rawTags = tagsMatch[1].split(',').map(t => t.trim().replace(/^[\"']|[\"']$/g, ''));\n  const generic = rawTags.filter(t => t && !BRAND_BLOCKLIST.test(t));\n  if (generic.length > 0) {\n    searchQuery = generic.slice(0, 2).join(' ').toLowerCase();\n  }\n}\n\nreturn [{\n  json: {\n    fileContent: cleanText,\n    contentLength: cleanText.length,\n    articleTitle: articleTitle || topicData.topic,\n    searchQuery,\n    topic: topicData.topic,\n    topicSlug: topicData.topicSlug,\n    rowNumber: topicData.rowNumber,\n    colA: topicData.colA,\n    colB: topicData.colB,\n    colC: topicData.colC\n  }\n}];"
+      },
+      "id": "strip-encode",
+      "name": "Strip Fences and Base64 Encode",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://api.unsplash.com/search/photos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Strip Fences and Base64 Encode').first().json.articleTitle }}"
+            },
+            {
+              "name": "per_page",
+              "value": "1"
+            },
+            {
+              "name": "orientation",
+              "value": "landscape"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "search-unsplash",
+      "name": "Search Unsplash",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1504,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "29E6xavevmwNBwY2",
+          "name": "Header Auth account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const stripData = $('Strip Fences and Base64 Encode').first().json;\nconst unsplashResponse = $input.first().json;\n\nlet hasImage = false;\nlet imageUrl = '';\nlet coverImagePath = '/images/blog/pm-default.jpg';\nlet photographerName = '';\nlet photoUrl = '';\n\ntry {\n  if (unsplashResponse && unsplashResponse.results && Array.isArray(unsplashResponse.results) && unsplashResponse.results.length > 0) {\n    const firstResult = unsplashResponse.results[0];\n    if (firstResult.urls && firstResult.urls.regular) {\n      imageUrl = firstResult.urls.regular;\n      coverImagePath = '/images/blog/' + stripData.topicSlug + '.jpg';\n      hasImage = true;\n      photographerName = (firstResult.user && firstResult.user.name) ? firstResult.user.name : '';\n      photoUrl = (firstResult.links && firstResult.links.html) ? firstResult.links.html : '';\n    }\n  }\n} catch (e) { hasImage = false; }\n\n// Escape double quotes in photographer name for YAML safety\nconst escapedPhotographer = photographerName.replace(/\"/g, '\\\\\"');\nconst creditValue = photographerName ? ('Photo by ' + escapedPhotographer + ' on Unsplash') : '';\n\n// Replace the coverImage line in the frontmatter\nlet updatedContent = stripData.fileContent;\nconst coverImageRegex = /coverImage:\\s*\"[^\"]*\"/;\nif (coverImageRegex.test(updatedContent)) {\n  updatedContent = updatedContent.replace(coverImageRegex, 'coverImage: \"' + coverImagePath + '\"');\n}\n\n// Inject coverImageCredit and coverImageCreditUrl after coverImageAlt (or after coverImage if alt not present)\nif (hasImage && creditValue && photoUrl) {\n  const creditBlock = 'coverImageCredit: \"' + creditValue + '\"\\ncoverImageCreditUrl: \"' + photoUrl + '\"';\n  // Remove any existing credit lines first to avoid duplicates on re-runs\n  updatedContent = updatedContent.replace(/\\n?coverImageCredit:\\s*\"[^\"]*\"/g, '');\n  updatedContent = updatedContent.replace(/\\n?coverImageCreditUrl:\\s*\"[^\"]*\"/g, '');\n  // Insert after coverImageAlt line if it exists\n  if (/coverImageAlt:\\s*\"[^\"]*\"/.test(updatedContent)) {\n    updatedContent = updatedContent.replace(/(coverImageAlt:\\s*\"[^\"]*\")/, '$1\\n' + creditBlock);\n  } else {\n    updatedContent = updatedContent.replace(/(coverImage:\\s*\"[^\"]*\")/, '$1\\n' + creditBlock);\n  }\n}\n\nreturn [{\n  json: {\n    fileContent: updatedContent,\n    contentLength: updatedContent.length,\n    articleTitle: stripData.articleTitle,\n    topic: stripData.topic,\n    topicSlug: stripData.topicSlug,\n    rowNumber: stripData.rowNumber,\n    colA: stripData.colA,\n    colB: stripData.colB,\n    colC: stripData.colC,\n    imageUrl,\n    hasImage,\n    coverImagePath,\n    imageFilePath: 'public/images/blog/' + stripData.topicSlug + '.jpg',\n    photographerName,\n    photoUrl\n  }\n}];"
+      },
+      "id": "process-unsplash",
+      "name": "Process Unsplash Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-has-image",
+              "leftValue": "={{ $json.hasImage }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-image",
+      "name": "If Has Image",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.imageUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-image",
+      "name": "Download Unsplash Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "accezcloud-sketch"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "AccezWebsite"
+        },
+        "filePath": "={{ $json.imageFilePath }}",
+        "binaryData": true,
+        "commitMessage": "={{ 'feat: add cover image for ' + $json.topic }}",
+        "additionalParameters": {
+          "branch": {}
+        }
+      },
+      "id": "push-image",
+      "name": "Push Image to GitHub",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        2704,
+        208
+      ],
+      "webhookId": "8ee43c20-307f-4bbe-ae6f-18fad4a31de8",
+      "credentials": {
+        "githubApi": {
+          "id": "dZ6HBZBJmSDSNW9z",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "accezcloud-sketch"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "AccezWebsite"
+        },
+        "filePath": "={{ 'content/blog/' + $('Process Unsplash Result').first().json.topicSlug + '.md' }}",
+        "fileContent": "={{ $('Process Unsplash Result').first().json.fileContent }}",
+        "commitMessage": "={{ 'feat: add blog post - ' + $('Process Unsplash Result').first().json.topic }}",
+        "additionalParameters": {
+          "branch": {}
+        }
+      },
+      "id": "github-push",
+      "name": "Push Blog Post to GitHub",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        3008,
+        304
+      ],
+      "webhookId": "0ee87b1d-f63c-4a46-bb7f-4e7065a766b8",
+      "credentials": {
+        "githubApi": {
+          "id": "dZ6HBZBJmSDSNW9z",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const topicData = $('Find First Pending Topic').first().json;\nconst sheetRow = {};\nsheetRow[topicData.colA] = topicData.topic;\nsheetRow[topicData.colB] = 'used';\nif (topicData.colC) { sheetRow[topicData.colC] = DateTime.now().toFormat('yyyy-MM-dd'); }\nreturn [{ json: { ...sheetRow, _topic: topicData.topic } }];"
+      },
+      "id": "prepare-update",
+      "name": "Prepare Sheet Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3312,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "16fsCY4tvysc0oGanYzYHYDY59NMM_DfaeT1j9lPFyT0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Topics"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "={{ $('Find First Pending Topic').first().json.colA }}"
+          ],
+          "value": {}
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "update-sheet",
+      "name": "Mark Topic as Used in Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3600,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aPlOnNF1lEPwYkVQ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-status",
+              "name": "status",
+              "value": "Success",
+              "type": "string"
+            },
+            {
+              "id": "field-message",
+              "name": "message",
+              "value": "={{ 'Blog post deployed and sheet updated for topic: ' + $('Find First Pending Topic').first().json.topic }}",
+              "type": "string"
+            },
+            {
+              "id": "field-url",
+              "name": "fileUrl",
+              "value": "={{ 'https://github.com/accezcloud-sketch/AccezWebsite/blob/main/content/blog/' + $('Find First Pending Topic').first().json.topicSlug + '.md' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-topic",
+              "name": "topic",
+              "value": "={{ $('Find First Pending Topic').first().json.topic }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-output",
+      "name": "Output Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3904,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-status",
+              "name": "status",
+              "value": "Failed",
+              "type": "string"
+            },
+            {
+              "id": "field-message",
+              "name": "message",
+              "value": "GitHub push failed. Google Sheet was NOT updated.",
+              "type": "string"
+            },
+            {
+              "id": "field-error",
+              "name": "error",
+              "value": "={{ $json.error ? ($json.error.message || JSON.stringify($json.error)) : 'Unknown error during GitHub push' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-output",
+      "name": "GitHub Push Failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3312,
+        512
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Manual Trigger\nClick 'Test workflow' to start the pipeline.",
+        "width": 260,
+        "color": 4
+      },
+      "id": "sticky-trigger",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Read Google Sheets\nReads rows from **Topics** sheet. Code finds first row where column B = 'pending'.",
+        "width": 560,
+        "color": 6
+      },
+      "id": "sticky-sheets-read",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. AI Content Generation\nGemini (gemini-2.5-flash-lite) generates bilingual EN/AR blog post with MDX frontmatter.",
+        "height": 180,
+        "width": 260,
+        "color": 6
+      },
+      "id": "sticky-ai",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        832,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Clean Output\nStrips code fences and extracts the **article title** from frontmatter for Unsplash search.",
+        "height": 180,
+        "width": 260,
+        "color": 2
+      },
+      "id": "sticky-clean",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5. Unsplash Image Fetch\n**Search Unsplash** with article title → **Process Result** extracts the first image URL and updates `coverImage` in the MDX frontmatter.\n\nFallback: `/images/blog/pm-default.jpg` if no result.\n\n**If Has Image** branches: TRUE → download + push image + article. FALSE → skip straight to article push.",
+        "height": 180,
+        "width": 860,
+        "color": 3
+      },
+      "id": "sticky-unsplash",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 6. Download & Push Image\nDownloads the Unsplash image as binary and pushes to `public/images/blog/<slug>.jpg`.",
+        "width": 560,
+        "color": 5
+      },
+      "id": "sticky-image-push",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 7. Push Blog Post\nCreates `content/blog/<slug>.md` on main. Error branches to failure node.",
+        "height": 180,
+        "width": 260,
+        "color": 2
+      },
+      "id": "sticky-article-push",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2928,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 8. Conditional Sheet Update\nOnly runs if article push succeeds. Marks row as 'used' with today's date.",
+        "width": 560,
+        "color": 5
+      },
+      "id": "sticky-update",
+      "name": "Sticky Note7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3232,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 9. Output\nSuccess: status + URL + topic.\nError: failure details, sheet unchanged.",
+        "width": 260,
+        "color": 5
+      },
+      "id": "sticky-output",
+      "name": "Sticky Note8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3824,
+        32
+      ]
+    },
+    {
+      "id": "schedule-trigger",
+      "name": "Schedule Every 2 Days",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        480
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 48
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "894abe8d-8e79-444c-9c99-b990f1c22477",
+      "name": "Has Unsplash Results?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        304
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-empty-results",
+              "leftValue": "={{ $json.results.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "21021cef-f865-4a62-8f07-6b7803dd1ef5",
+      "name": "Search Unsplash Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1900,
+        200
+      ],
+      "parameters": {
+        "url": "https://api.unsplash.com/search/photos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Strip Fences and Base64 Encode').first().json.searchQuery }}"
+            },
+            {
+              "name": "per_page",
+              "value": "1"
+            },
+            {
+              "name": "orientation",
+              "value": "landscape"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "29E6xavevmwNBwY2",
+          "name": "Header Auth account 2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start Blog Deploy": {
+      "main": [
+        [
+          {
+            "node": "Read Topics from Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Topics from Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Find First Pending Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find First Pending Topic": {
+      "main": [
+        [
+          {
+            "node": "Generate Blog Post with Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Blog Post with Gemini",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Blog Post with Gemini": {
+      "main": [
+        [
+          {
+            "node": "Strip Fences and Base64 Encode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strip Fences and Base64 Encode": {
+      "main": [
+        [
+          {
+            "node": "Search Unsplash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Unsplash Result": {
+      "main": [
+        [
+          {
+            "node": "If Has Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Image": {
+      "main": [
+        [
+          {
+            "node": "Download Unsplash Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Push Blog Post to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Unsplash Image": {
+      "main": [
+        [
+          {
+            "node": "Push Image to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push Image to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Push Blog Post to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push Blog Post to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Prepare Sheet Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GitHub Push Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Sheet Update": {
+      "main": [
+        [
+          {
+            "node": "Mark Topic as Used in Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Topic as Used in Sheet": {
+      "main": [
+        [
+          {
+            "node": "Output Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Every 2 Days": {
+      "main": [
+        [
+          {
+            "node": "Read Topics from Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Unsplash": {
+      "main": [
+        [
+          {
+            "node": "Has Unsplash Results?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Unsplash Results?": {
+      "main": [
+        [
+          {
+            "node": "Search Unsplash Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Unsplash Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Unsplash Fallback": {
+      "main": [
+        [
+          {
+            "node": "Process Unsplash Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "binaryMode": "separate"
+  },
+  "active": false,
+  "pinData": {},
+  "versionId": null,
+  "meta": {
+    "instanceId": "export"
+  },
+  "tags": []
+}
