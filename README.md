@@ -1,13 +1,19 @@
 # n8n Deployment
 
-Self-hosted n8n on a VPS via Docker. Used to run the **Test Blog Auto Deploy** workflow that generates blog posts with Gemini, fetches Unsplash images, and pushes to GitHub.
+Self-hosted n8n on a VPS via Docker. Runs three blog auto-deploy workflows that generate posts with Gemini, fetch Unsplash images, push to GitHub, and announce on Facebook:
+
+- **Accez Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/AccezWebsite`, posts to the Accez Facebook page (every 2 days at **09:00**)
+- **CloudElite Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/CloudEliteSite`, posts to the CloudElite Facebook page (every 2 days at **12:00**)
+- **Veganster Blog Auto Deploy** — English posts to `accezcloud-sketch/veganster`, posts to the Veganster Facebook page (every 2 days at **15:00**)
+
+All three are timezone-anchored to `Asia/Riyadh` and read pending topics from per-brand Google Sheets.
 
 ## Prerequisites on the VPS
 
 - Docker + Docker Compose plugin
 - Nginx (already running for the existing site)
 - Certbot (for HTTPS)
-- A subdomain pointed at the VPS IP (A record), e.g. `n8n.yourdomain.com`
+- A subdomain pointed at the VPS IP (A record), e.g. `n8n.accez.cloud`
 
 Install Docker if missing:
 ```bash
@@ -31,9 +37,9 @@ nano .env
 ```
 
 Set:
-- `N8N_HOST` — the subdomain (e.g. `n8n.yourdomain.com`)
+- `N8N_HOST` — the subdomain (e.g. `n8n.accez.cloud`)
 - `N8N_ENCRYPTION_KEY` — generate with `openssl rand -hex 32`. **Save this in 1Password / shared vault. If lost, all stored credentials become unrecoverable.**
-- `GENERIC_TIMEZONE` — defaults to `Asia/Riyadh`
+- `GENERIC_TIMEZONE` — `Asia/Riyadh` (must match — schedule triggers fire in this timezone)
 
 ## 3. Start n8n
 
@@ -51,7 +57,7 @@ Create `/etc/nginx/sites-available/n8n`:
 ```nginx
 server {
     listen 80;
-    server_name n8n.yourdomain.com;
+    server_name n8n.accez.cloud;
 
     location / {
         proxy_pass http://127.0.0.1:5678;
@@ -72,38 +78,67 @@ Enable + get the cert:
 ```bash
 ln -s /etc/nginx/sites-available/n8n /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
-certbot --nginx -d n8n.yourdomain.com
+certbot --nginx -d n8n.accez.cloud
 ```
 
 ## 5. First login
 
-Visit `https://n8n.yourdomain.com` and create the owner account.
+Visit `https://n8n.accez.cloud` and create the owner account.
 
-## 6. Import the workflow
+## 6. Import the three workflows
 
-In the n8n UI:
-- **Workflows → Import from File**
-- Upload `workflows/test-blog-auto-deploy.json`
+In the n8n UI, for each file in `workflows/`:
+- **Workflows → Import from File** → upload the JSON
+
+Import order doesn't matter. All three import as **inactive** with credentials unmapped — that's expected.
+
+| File | Workflow name | Trigger |
+|---|---|---|
+| `workflows/accez-blog-auto-deploy.json` | Accez Blog Auto Deploy | Every 2 days at 09:00 |
+| `workflows/cloudelite-blog-auto-deploy.json` | CloudElite Blog Auto Deploy | Every 2 days at 12:00 |
+| `workflows/veganster-blog-auto-deploy.json` | Veganster Blog Auto Deploy | Every 2 days at 15:00 |
 
 ## 7. Re-create credentials
 
-The workflow needs four credentials. They were not exported (encrypted to the original instance), so they must be re-added in the new n8n UI:
+Credentials are encrypted to the original instance and **never travel with the workflow JSON**. Recreate all seven in **Credentials → Create new** on the new instance, then open each workflow and re-link the credential on every node showing a "credential not found" badge.
 
-| Name in workflow | Type | Where to get the key |
-|---|---|---|
-| Google Sheets account | Google Sheets OAuth2 API | Google Cloud Console |
-| Google Gemini (PaLM) Api account | Google Gemini API | https://aistudio.google.com/apikey |
-| GitHub account | GitHub API | GitHub → Settings → Developer settings → Personal access tokens |
-| Header Auth account 2 (Unsplash) | HTTP Header Auth | Unsplash app → access key. Header: `Authorization`, value: `Client-ID YOUR_KEY` |
+| Name (must match exactly) | Type | Used by | Where to get it |
+|---|---|---|---|
+| `Google Sheets account` | Google Sheets OAuth2 API | All 3 (read topics, mark used) | Google Cloud Console → OAuth client |
+| `Google Gemini(PaLM) Api account` | Google Gemini (PaLM) API | All 3 (blog generation) | https://aistudio.google.com/apikey |
+| `GitHub account` | GitHub API | All 3 (push markdown + images) | GitHub → Settings → Developer settings → Personal access tokens (classic, with `repo` scope) |
+| `Header Auth account 2` | HTTP Header Auth | All 3 (Unsplash API) | Unsplash app → access key. Header name: `Authorization`, header value: `Client-ID YOUR_KEY` |
+| `Facebook Graph account` | Facebook Graph API | Accez Facebook post | Meta for Developers → Page access token for the Accez page (id `425256947348313`) |
+| `Facebook Cloud Elite Page Token` | Facebook Graph API | CloudElite Facebook post | Page access token for the CloudElite page (id `854491451307629`) |
+| `Facebook Veganster Page Token` | Facebook Graph API | Veganster Facebook post | Page access token for the Veganster page (id `1712271652133742`) |
 
-After adding each credential, open the workflow and re-link the credential to its node.
+Page access tokens should be the long-lived variant (60-day) or a System User token if you want them not to expire.
 
-## 8. Activate and test
+## 8. Test each workflow before activating
 
-1. Open the imported workflow in n8n.
-2. Click the manual trigger and **Execute Workflow** to test end-to-end.
-3. Verify a blog post appears in the GitHub repo and the topic gets marked as used in the Google Sheet.
-4. Toggle the workflow to **Active** (top right) so the Schedule trigger fires every 2 days.
+Even with schedule-only triggers, you can run each workflow on demand from the editor — open the workflow → click **Execute Workflow** in the top bar. Do this once per workflow:
+
+1. Verify a real post lands on GitHub (and the cover image, for Accez/CloudElite)
+2. Verify the Facebook post lands on the correct page
+3. Verify the Sheet row gets marked `used` (col B) and dated (col C)
+4. If anything went wrong, **delete the test commit + revert the Sheet row** before activating
+
+Each workflow's Google Sheet must have at least one row in `pending` status, otherwise `Find First Pending Topic` errors out and the workflow stops.
+
+## 9. Activate (staggered same-day cadence)
+
+The schedule trigger uses `daysInterval: 2` anchored to **the moment of activation**, not the calendar. To get the 09:00 → 12:00 → 15:00 same-day cadence:
+
+1. Pick a launch day
+2. **Before 09:00 that day**, flip all three workflows to active in the same sitting
+3. They'll all fire that day and then together every 2 days
+
+If you can't activate before 09:00, the day-of-activation behaviour is:
+- Activated before 12:00 → CloudElite + Veganster fire today, Accez fires in 2 days
+- Activated before 15:00 → only Veganster fires today
+- Activated after 15:00 → none fire today; first cycle is 2 days later
+
+If guaranteed calendar alignment matters (e.g. always even-numbered days of the month regardless of activation time), switch the trigger rule from `daysInterval` to a cron expression — `0 9 */2 * *`, `0 12 */2 * *`, `0 15 */2 * *`. Edit the schedule node, change the rule type, save, re-activate.
 
 ## Backups
 
@@ -132,4 +167,6 @@ docker compose up -d
 
 - `docker-compose.yml` — n8n container definition
 - `.env.example` — template for environment variables (real `.env` is gitignored)
-- `workflows/test-blog-auto-deploy.json` — exported workflow, import via UI
+- `workflows/accez-blog-auto-deploy.json` — Accez bilingual blog workflow
+- `workflows/cloudelite-blog-auto-deploy.json` — CloudElite bilingual blog workflow
+- `workflows/veganster-blog-auto-deploy.json` — Veganster English blog workflow

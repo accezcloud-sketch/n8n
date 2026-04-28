@@ -1,0 +1,720 @@
+{
+    "name":  "Veganster Blog Auto Deploy",
+    "nodes":  [
+                  {
+                      "id":  "read-sheets",
+                      "name":  "Read Veganster Topics",
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.7,
+                      "position":  [
+                                       256,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "documentId":  {
+                                                            "__rl":  true,
+                                                            "mode":  "id",
+                                                            "value":  "1lai3EIfvYD6t_FLL6uYZKCMAx5-6Yeepgnlh40OVMlo"
+                                                        },
+                                         "sheetName":  {
+                                                           "__rl":  true,
+                                                           "mode":  "list",
+                                                           "value":  "0",
+                                                           "cachedResultName":  "Sheet1",
+                                                           "cachedResultUrl":  "https://docs.google.com/spreadsheets/d/1lai3EIfvYD6t_FLL6uYZKCMAx5-6Yeepgnlh40OVMlo/edit#gid=0"
+                                                       },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "credentials":  {
+                                          "googleSheetsOAuth2Api":  {
+                                                                        "id":  "aPlOnNF1lEPwYkVQ",
+                                                                        "name":  "Google Sheets account"
+                                                                    }
+                                      },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "find-pending",
+                      "name":  "Find First Pending Topic",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       512,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const items = $input.all();\nif (!items || items.length === 0) {\n  throw new Error(\u0027No data received from Google Sheets. Check the sheet ID, tab name, and permissions.\u0027);\n}\nfor (let i = 0; i \u003c items.length; i++) {\n  const row = items[i].json;\n  const keys = Object.keys(row).filter(k =\u003e k !== \u0027row_number\u0027);\n  const colA = keys[0];\n  const colB = keys[1];\n  const colC = keys.length \u003e 2 ? keys[2] : null;\n  if (colB \u0026\u0026 row[colB] \u0026\u0026 row[colB].toString().toLowerCase().trim() === \u0027pending\u0027 \u0026\u0026 row[colA] \u0026\u0026 row[colA].toString().trim()) {\n    const topic = row[colA].toString().trim();\n    return [{json:{topic, rowNumber: row.row_number || (i + 2), colA, colB, colC}}];\n  }\n}\nthrow new Error(\u0027No pending topics found in the Veganster Topics sheet.\u0027);"
+                                     },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "inject-date",
+                      "name":  "Inject Today\u0027s Date",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       768,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "f1",
+                                                                                     "name":  "topic",
+                                                                                     "value":  "={{ $json.topic }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "f2",
+                                                                                     "name":  "rowNumber",
+                                                                                     "value":  "={{ $json.rowNumber }}",
+                                                                                     "type":  "number"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "f3",
+                                                                                     "name":  "colA",
+                                                                                     "value":  "={{ $json.colA }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "f4",
+                                                                                     "name":  "colB",
+                                                                                     "value":  "={{ $json.colB }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "f5",
+                                                                                     "name":  "colC",
+                                                                                     "value":  "={{ $json.colC }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "f6",
+                                                                                     "name":  "todayDate",
+                                                                                     "value":  "={{ $now.toFormat(\u0027yyyy-MM-dd\u0027) }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     }
+                  },
+                  {
+                      "id":  "generate-blog",
+                      "name":  "Generate Veganster Blog with Gemini",
+                      "type":  "@n8n/n8n-nodes-langchain.chainLlm",
+                      "typeVersion":  1.9,
+                      "position":  [
+                                       1024,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "promptType":  "define",
+                                         "text":  "=Write a plant-based wellness blog post for Veganster — a plant-based living and wellness website. The topic is: {{ $json.topic }}\nUse this exact frontmatter structure:\n---\ntitle: \"[title]\"\nexcerpt: [one sentence summary without quotes]\ndate: \"{{ $json.todayDate }}\"\nauthor: [choose one: \"Dr. Maya Green\" or \"Dr. James Liu\" or \"Dr. Sarah Chen\" — pick whichever fits the topic best]\ncategory: [choose one: Nutrition, Wellness, or Lifestyle]\ncoverImage: UNSPLASH_PLACEHOLDER\ncoverImageAlt: [detailed descriptive alt text of what the ideal cover photo would show]\ncoverImageCredit: CREDIT_PLACEHOLDER\ncoverImageCreditUrl: CREDIT_URL_PLACEHOLDER\nreadTime: [estimated read time, e.g. \"8 min read\"]\ndescription: \"[one to two sentence SEO description]\"\ntags:\n  - [tag1]\n  - [tag2]\n  - [tag3]\n  - [tag4]\n---\nFollow this exact content structure:\n- Open with a 2-3 sentence hook paragraph in plain prose. No heading. Present a surprising fact, common misconception, or relatable problem related to the topic.\n- Use ## for main section headings and ### for subsections when natural — never #### or deeper\n- Write in flowing prose paragraphs, with markdown formatting where it adds value: **bold** for key terms (max 2-3 per section), *italic* for emphasis or technical terms, and \u003e for blockquotes when citing studies or expert advice\n- Use `-` (hyphen) for unordered lists, NEVER `*` (asterisk). Reserve bullets for 4+ items; otherwise prefer prose. Numbered lists (1. 2. 3.) are fine when sequence matters\n- Include at least one specific statistic or research finding per major section\n- End the last section with exactly 2 related article links. Pick 2 from the list below and copy the markdown VERBATIM — do not modify, rephrase, shorten, or regenerate the slugs in any way. Use the exact text and exact URL shown:\n  - [10 Plant Proteins That Beat Meat](/blog/plant-proteins-that-beat-meat)\n  - [The Science Behind Gut Health](/blog/science-behind-gut-health)\n  - [A Beginner\u0027s Guide to Going Vegan](/blog/beginners-guide-to-going-vegan)\n  - [7 Superfoods You Should Eat Daily](/blog/superfoods-you-should-eat-daily)\n  - [Vegan Meal Prep for Busy Weekdays](/blog/meal-prep-for-busy-weekdays)\n  - [The Ultimate Anti-Inflammatory Foods Guide](/blog/anti-inflammatory-foods-guide)\n- Total length: 700-900 words\n- Tone: warm, knowledgeable, science-backed but accessible. Like advice from a trusted nutritionist friend, not a clinical paper.\n- Output only raw markdown — no code fences, no explanation, nothing before the frontmatter dashes.",
+                                         "batching":  {
+
+                                                      }
+                                     },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "gemini-model",
+                      "name":  "Google Gemini Chat Model",
+                      "type":  "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1024,
+                                       624
+                                   ],
+                      "parameters":  {
+                                         "modelName":  "models/gemini-2.5-flash-lite",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "credentials":  {
+                                          "googlePalmApi":  {
+                                                                "id":  "ctwWGjnx3iat3Soe",
+                                                                "name":  "Google Gemini(PaLM) Api account"
+                                                            }
+                                      }
+                  },
+                  {
+                      "id":  "strip-fences",
+                      "name":  "Strip Markdown Fences",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1280,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const text = $input.first().json.text;\nif (!text) throw new Error(\u0027No content received from Gemini. Check the AI model response.\u0027);\n\nlet clean = text.trim();\nif (clean.startsWith(\u0027```\u0027)) {\n  clean = clean.replace(/^```(?:md|markdown|mdx)?\\n?/, \u0027\u0027).replace(/\\n?```$/, \u0027\u0027).trim();\n}\n\nlet articleTitle = \u0027\u0027;\nconst tm = clean.match(/^title:\\s*(.+)$/m);\nif (tm) articleTitle = tm[1].trim().replace(/^[\"\u0027]|[\"\u0027]$/g, \u0027\u0027);\n\nconst stopWords = new Set([\u0027the\u0027,\u0027a\u0027,\u0027an\u0027,\u0027of\u0027,\u0027to\u0027,\u0027in\u0027,\u0027for\u0027,\u0027and\u0027,\u0027or\u0027,\u0027with\u0027,\u0027on\u0027,\u0027your\u0027,\u0027my\u0027,\u0027this\u0027,\u0027that\u0027,\u0027is\u0027,\u0027are\u0027,\u0027be\u0027,\u0027from\u0027,\u0027at\u0027,\u0027by\u0027,\u0027how\u0027,\u0027why\u0027,\u0027what\u0027,\u0027when\u0027,\u0027best\u0027,\u0027top\u0027,\u0027guide\u0027]);\nconst words = (articleTitle || \u0027\u0027).toLowerCase().split(/[^a-z0-9]+/).filter(w =\u003e w \u0026\u0026 !stopWords.has(w));\nconst searchKeywords = words.slice(0, 4).join(\u0027 \u0027) || \u0027plant based food\u0027;\n\nconst ctx = $(\u0027Inject Today\\\u0027s Date\u0027).first().json;\n\nreturn [{\n  json: {\n    topic: ctx.topic,\n    rowNumber: ctx.rowNumber,\n    colA: ctx.colA,\n    colB: ctx.colB,\n    colC: ctx.colC,\n    todayDate: ctx.todayDate,\n    articleTitle: articleTitle || ctx.topic,\n    searchKeywords,\n    articleContent: clean\n  }\n}];"
+                                     },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "push-github",
+                      "name":  "Push Blog to GitHub",
+                      "type":  "n8n-nodes-base.github",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       2048,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "resource":  "file",
+                                         "owner":  {
+                                                       "__rl":  true,
+                                                       "mode":  "name",
+                                                       "value":  "accezcloud-sketch"
+                                                   },
+                                         "repository":  {
+                                                            "__rl":  true,
+                                                            "mode":  "name",
+                                                            "value":  "veganster"
+                                                        },
+                                         "filePath":  "={{ \u0027src/content/blog/\u0027 + $json.slug + \u0027.md\u0027 }}",
+                                         "fileContent":  "={{ $json.articleContent }}",
+                                         "commitMessage":  "={{ \u0027feat: add blog post - \u0027 + $json.topic }}",
+                                         "additionalParameters":  {
+                                                                      "branch":  {
+                                                                                     "branch":  "main"
+                                                                                 }
+                                                                  }
+                                     },
+                      "credentials":  {
+                                          "githubApi":  {
+                                                            "id":  "dZ6HBZBJmSDSNW9z",
+                                                            "name":  "GitHub account"
+                                                        }
+                                      },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "prepare-update",
+                      "name":  "Prepare Sheet Update",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2816,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const t = $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json;\nconst row = {};\nrow[t.colA] = t.topic;\nrow[t.colB] = \u0027used\u0027;\nif (t.colC) row[t.colC] = t.todayDate;\nreturn [{json: row}];"
+                                     },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "update-sheet",
+                      "name":  "Mark Topic as Used",
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.7,
+                      "position":  [
+                                       3072,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "operation":  "update",
+                                         "documentId":  {
+                                                            "__rl":  true,
+                                                            "mode":  "id",
+                                                            "value":  "1lai3EIfvYD6t_FLL6uYZKCMAx5-6Yeepgnlh40OVMlo"
+                                                        },
+                                         "sheetName":  {
+                                                           "__rl":  true,
+                                                           "mode":  "list",
+                                                           "value":  "0",
+                                                           "cachedResultName":  "Sheet1",
+                                                           "cachedResultUrl":  "https://docs.google.com/spreadsheets/d/1lai3EIfvYD6t_FLL6uYZKCMAx5-6Yeepgnlh40OVMlo/edit#gid=0"
+                                                       },
+                                         "columns":  {
+                                                         "mappingMode":  "autoMapInputData",
+                                                         "matchingColumns":  [
+                                                                                 "={{ $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.colA }}"
+                                                                             ],
+                                                         "value":  {
+
+                                                                   }
+                                                     },
+                                         "options":  {
+                                                         "handlingExtraData":  "ignoreIt"
+                                                     }
+                                     },
+                      "credentials":  {
+                                          "googleSheetsOAuth2Api":  {
+                                                                        "id":  "aPlOnNF1lEPwYkVQ",
+                                                                        "name":  "Google Sheets account"
+                                                                    }
+                                      },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "output-success",
+                      "name":  "Output Success",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       3328,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "s1",
+                                                                                     "name":  "status",
+                                                                                     "value":  "Success",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "s2",
+                                                                                     "name":  "topic",
+                                                                                     "value":  "={{ $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.topic }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "s3",
+                                                                                     "name":  "githubFileUrl",
+                                                                                     "value":  "={{ \u0027https://github.com/accezcloud-sketch/veganster/blob/main/src/content/blog/\u0027 + $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.slug + \u0027.md\u0027 }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "s4",
+                                                                                     "name":  "unsplashImageUrl",
+                                                                                     "value":  "={{ $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.imageUrl }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "s5",
+                                                                                     "name":  "imageSource",
+                                                                                     "value":  "={{ $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.usedFallback ? \u0027fallback (Unsplash search failed)\u0027 : \u0027Unsplash search result\u0027 }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "s6",
+                                                                                     "name":  "sheetUpdated",
+                                                                                     "value":  "true",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     }
+                  },
+                  {
+                      "id":  "sticky1",
+                      "name":  "Sticky 1",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -80,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 1. Schedule Trigger\nRuns automatically every 2 days at 14:00.",
+                                         "width":  280,
+                                         "color":  4
+                                     }
+                  },
+                  {
+                      "id":  "sticky2",
+                      "name":  "Sticky 2",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       220,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 2-3. Read Sheet \u0026 Find Pending\nReads from Google Sheets `1lai3EI...OVMlo`, tab **Topics**. Code finds first row where col B = `pending` and stores topic + row metadata.",
+                                         "width":  540,
+                                         "color":  6
+                                     }
+                  },
+                  {
+                      "id":  "sticky3",
+                      "name":  "Sticky 3",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       760,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 4. Inject Today\u0027s Date\nSet node injects `todayDate` in YYYY-MM-DD so the model never guesses the date.",
+                                         "width":  240,
+                                         "color":  6
+                                     }
+                  },
+                  {
+                      "id":  "sticky4",
+                      "name":  "Sticky 4",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1010,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 5-6. Generate Blog \u0026 Strip Fences\nGemini `gemini-2.5-flash-lite-preview-06-17` writes the 700-900 word article with PLACEHOLDER cover fields. Code node strips any markdown fences, extracts title, derives 3-4 search keywords.",
+                                         "width":  520,
+                                         "color":  6
+                                     }
+                  },
+                  {
+                      "id":  "sticky5",
+                      "name":  "Sticky 5",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1530,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 7-9. Unsplash Fallback Chain + Slug + Encode\nSearch node tries up to 3 Unsplash queries (smart food keyword → broader category → random generic term). If all return empty, picks randomly from a 12-image hardcoded vegan-food pool. Process step replaces UNSPLASH_PLACEHOLDER / CREDIT_PLACEHOLDER / CREDIT_URL_PLACEHOLDER, generates slug (≤60 chars), and base64-encodes content.",
+                                         "width":  520,
+                                         "color":  3
+                                     }
+                  },
+                  {
+                      "id":  "sticky6",
+                      "name":  "Sticky 6",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       2030,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 10. Push to GitHub\nPushes to `accezcloud-sketch/veganster` → `src/content/blog/\u003cslug\u003e.md` on `main`. Uses `stopWorkflow` on error so the sheet is NOT updated if push fails.",
+                                         "width":  480,
+                                         "color":  2
+                                     }
+                  },
+                  {
+                      "id":  "sticky7",
+                      "name":  "Sticky 7",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3032,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 11. Mark Topic Used\nOnly reached on successful GitHub push. Sets col B = `used`, col C = today\u0027s date.",
+                                         "width":  280,
+                                         "color":  5
+                                     }
+                  },
+                  {
+                      "id":  "sticky8",
+                      "name":  "Sticky 8",
+                      "type":  "n8n-nodes-base.stickyNote",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3322,
+                                       200
+                                   ],
+                      "parameters":  {
+                                         "content":  "## 12. Output Success\nFinal Set node returns topic, GitHub file URL, Unsplash image URL, image source, and sheet-updated confirmation.",
+                                         "width":  320,
+                                         "color":  5
+                                     }
+                  },
+                  {
+                      "id":  "build-fb-message",
+                      "name":  "Build Facebook Message",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       2304,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "fb-message-001",
+                                                                                     "name":  "facebookMessage",
+                                                                                     "value":  "={{ \u0027📝 New Blog Post: \u0027 + $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.articleTitle + \u0027\\n\\n\u0027 + (($(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.articleContent.match(/^excerpt:\\s*\"?(.+?)\"?\\s*$/m) || [])[1] || \u0027\u0027) + \u0027\\n\\nRead more: https://veganster.com/blog/\u0027 + $(\u0027Process Unsplash, Generate Slug \u0026 Encode\u0027).first().json.slug + \u0027\\n\\n#Veganster #Vegan #PlantBased #VeganFood #HealthyLiving #Sustainability\u0027 }}",
+                                                                                     "type":  "string"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     }
+                  },
+                  {
+                      "id":  "post-fb-page",
+                      "name":  "Post Blog to Facebook Page",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2560,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://graph.facebook.com/v25.0/1712271652133742/feed",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "facebookGraphApi",
+                                         "sendBody":  true,
+                                         "contentType":  "form-urlencoded",
+                                         "bodyParameters":  {
+                                                                "parameters":  [
+                                                                                   {
+                                                                                       "name":  "message",
+                                                                                       "value":  "={{ $json.facebookMessage }}"
+                                                                                   }
+                                                                               ]
+                                                            },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "credentials":  {
+                                          "facebookGraphApi":  {
+                                                                   "id":  "zsb6Cq5PXH4mqw9t",
+                                                                   "name":  "Facebook Veganster Page Token"
+                                                               }
+                                      },
+                      "onError":  "continueRegularOutput"
+                  },
+                  {
+                      "id":  "search-unsplash-fallback",
+                      "name":  "Search Unsplash with Fallback",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1536,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "// =============================================================\n// Multi-query Unsplash search with hardcoded image pool fallback.\n// Tries 3 progressively broader queries; if all return empty,\n// picks a random image from a 12-photo pre-curated vegan pool.\n// =============================================================\nconst stripData = $input.first().json;\nconst title = stripData.articleTitle || stripData.topic || \u0027\u0027;\n\nconst stopWords = new Set([\u0027the\u0027,\u0027a\u0027,\u0027an\u0027,\u0027of\u0027,\u0027to\u0027,\u0027in\u0027,\u0027for\u0027,\u0027and\u0027,\u0027or\u0027,\u0027with\u0027,\u0027on\u0027,\u0027your\u0027,\u0027my\u0027,\u0027this\u0027,\u0027that\u0027,\u0027is\u0027,\u0027are\u0027,\u0027be\u0027,\u0027from\u0027,\u0027at\u0027,\u0027by\u0027,\u0027how\u0027,\u0027why\u0027,\u0027what\u0027,\u0027when\u0027,\u0027best\u0027,\u0027top\u0027,\u0027guide\u0027,\u0027should\u0027,\u0027eat\u0027,\u0027daily\u0027,\u0027science\u0027,\u0027behind\u0027,\u0027ultimate\u0027,\u0027complete\u0027,\u0027beginner\u0027,\u0027beginners\u0027]);\nconst titleWords = title.toLowerCase().split(/[^a-z0-9]+/).filter(w =\u003e w \u0026\u0026 !stopWords.has(w));\n\n// --- Query 1: smart 1-2 word query targeting a food/ingredient ---\nconst foodKeywords = [\u0027protein\u0027,\u0027quinoa\u0027,\u0027kale\u0027,\u0027tofu\u0027,\u0027tempeh\u0027,\u0027bean\u0027,\u0027lentil\u0027,\u0027rice\u0027,\u0027oat\u0027,\u0027chickpea\u0027,\u0027spinach\u0027,\u0027broccoli\u0027,\u0027avocado\u0027,\u0027smoothie\u0027,\u0027salad\u0027,\u0027breakfast\u0027,\u0027lunch\u0027,\u0027dinner\u0027,\u0027meal\u0027,\u0027soup\u0027,\u0027curry\u0027,\u0027pasta\u0027,\u0027burger\u0027,\u0027wrap\u0027,\u0027bowl\u0027,\u0027vegetable\u0027,\u0027fruit\u0027,\u0027berry\u0027,\u0027nut\u0027,\u0027seed\u0027,\u0027grain\u0027,\u0027bread\u0027,\u0027dessert\u0027,\u0027cookie\u0027,\u0027cake\u0027,\u0027pizza\u0027,\u0027tomato\u0027,\u0027pepper\u0027,\u0027mushroom\u0027,\u0027cabbage\u0027,\u0027carrot\u0027,\u0027potato\u0027,\u0027tea\u0027,\u0027coffee\u0027,\u0027juice\u0027,\u0027milk\u0027,\u0027butter\u0027,\u0027yogurt\u0027,\u0027cheese\u0027,\u0027flax\u0027,\u0027chia\u0027,\u0027hemp\u0027,\u0027almond\u0027,\u0027walnut\u0027,\u0027cashew\u0027];\nconst foodMatch = titleWords.find(w =\u003e foodKeywords.some(kw =\u003e w === kw || w.startsWith(kw)));\nlet smartQuery;\nif (foodMatch) {\n  smartQuery = \u0027vegan \u0027 + foodMatch;\n} else {\n  smartQuery = (titleWords.slice(0, 2).join(\u0027 \u0027) || \u0027plant based\u0027) + \u0027 vegan\u0027;\n}\n\n// --- Query 2: broader category-derived term ---\nconst categoryMap = {\n  breakfast: \u0027vegan breakfast\u0027, lunch: \u0027vegan lunch\u0027, dinner: \u0027vegan dinner\u0027,\n  dessert: \u0027vegan dessert\u0027, snack: \u0027vegan snack\u0027, drink: \u0027smoothie healthy\u0027,\n  smoothie: \u0027smoothie bowl\u0027, salad: \u0027fresh salad\u0027, soup: \u0027vegan soup\u0027,\n  bowl: \u0027plant based bowl\u0027, protein: \u0027plant based protein\u0027, proteins: \u0027plant based protein\u0027,\n  inflammation: \u0027fresh vegetables\u0027, inflammatory: \u0027fresh vegetables\u0027,\n  wellness: \u0027healthy lifestyle\u0027, health: \u0027healthy food\u0027, nutrition: \u0027fresh fruits vegetables\u0027,\n  gut: \u0027fermented vegetables\u0027, immune: \u0027colorful vegetables\u0027, energy: \u0027fresh fruits\u0027,\n  iron: \u0027leafy greens\u0027, vitamin: \u0027fresh vegetables\u0027,\n  superfood: \u0027colorful fruits vegetables\u0027, superfoods: \u0027colorful fruits vegetables\u0027,\n};\nlet broaderQuery = \u0027plant based meal\u0027;\nfor (const w of titleWords) {\n  if (categoryMap[w]) { broaderQuery = categoryMap[w]; break; }\n}\n\n// --- Query 3: random pick from guaranteed-result generic terms ---\nconst fallbackTerms = [\u0027vegan food\u0027,\u0027plant based meal\u0027,\u0027vegetables fresh\u0027,\u0027healthy salad\u0027,\u0027vegan bowl\u0027,\u0027fruits vegetables\u0027,\u0027plant based protein\u0027,\u0027vegan cooking\u0027];\nconst randomTerm = fallbackTerms[Math.floor(Math.random() * fallbackTerms.length)];\n\nconst queries = [smartQuery, broaderQuery, randomTerm];\n\nlet imageUrl = null;\nlet credit = \u0027\u0027;\nlet creditUrl = \u0027\u0027;\nlet usedQuery = \u0027\u0027;\nlet usedFallback = false;\nconst attempted = [];\n\nfor (const q of queries) {\n  attempted.push(q);\n  try {\n    const response = await this.helpers.httpRequestWithAuthentication.call(this, \u0027httpHeaderAuth\u0027, {\n      method: \u0027GET\u0027,\n      url: \u0027https://api.unsplash.com/search/photos\u0027,\n      qs: { query: q, per_page: 1, orientation: \u0027landscape\u0027 },\n      json: true,\n    });\n    if (response \u0026\u0026 response.results \u0026\u0026 response.results.length \u003e 0) {\n      const f = response.results[0];\n      if (f.urls \u0026\u0026 f.urls.regular) {\n        const u = new URL(f.urls.regular);\n        [\u0027w\u0027,\u0027h\u0027,\u0027fit\u0027,\u0027fm\u0027,\u0027q\u0027,\u0027crop\u0027,\u0027cs\u0027,\u0027ixid\u0027,\u0027ixlib\u0027,\u0027auto\u0027,\u0027dpr\u0027].forEach(p =\u003e u.searchParams.delete(p));\n        u.searchParams.set(\u0027w\u0027, \u00271200\u0027);\n        u.searchParams.set(\u0027h\u0027, \u0027800\u0027);\n        u.searchParams.set(\u0027fit\u0027, \u0027crop\u0027);\n        u.searchParams.set(\u0027fm\u0027, \u0027webp\u0027);\n        u.searchParams.set(\u0027q\u0027, \u002780\u0027);\n        imageUrl = u.toString();\n        const photographerName = (f.user \u0026\u0026 f.user.name) ? f.user.name : \u0027\u0027;\n        const photoUrl = (f.links \u0026\u0026 f.links.html) ? f.links.html : \u0027\u0027;\n        credit = photographerName ? (\u0027Photo by \u0027 + photographerName + \u0027 on Unsplash\u0027) : \u0027Unsplash\u0027;\n        creditUrl = photoUrl || \u0027https://unsplash.com\u0027;\n        usedQuery = q;\n        break;\n      }\n    }\n  } catch (e) {\n    // try next query\n  }\n}\n\n// --- Final fallback: pick a random image from a hardcoded pool ---\nif (!imageUrl) {\n  const pool = [\n    { url: \u0027https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo by Dan Gold on Unsplash\u0027, creditUrl: \u0027https://unsplash.com/photos/4_jhDO54BYg\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo by Brooke Lark on Unsplash\u0027, creditUrl: \u0027https://unsplash.com/photos/08bOYnH_r_E\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo by Brooke Lark on Unsplash\u0027, creditUrl: \u0027https://unsplash.com/photos/W1B2LpQOBxA\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1505253758473-96b7015fcd40?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo by Anna Pelzer on Unsplash\u0027, creditUrl: \u0027https://unsplash.com/photos/IGfIGP5ONV0\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo by Brooke Lark on Unsplash\u0027, creditUrl: \u0027https://unsplash.com/photos/HlNcigvUi4Q\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo by Brooke Lark on Unsplash\u0027, creditUrl: \u0027https://unsplash.com/photos/jUPOXXRNdcA\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1493770348161-369560ae357d?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo on Unsplash\u0027, creditUrl: \u0027https://unsplash.com\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1540420773420-3366772f4999?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo on Unsplash\u0027, creditUrl: \u0027https://unsplash.com\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo on Unsplash\u0027, creditUrl: \u0027https://unsplash.com\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1543339494-b4cd4f7ba686?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo on Unsplash\u0027, creditUrl: \u0027https://unsplash.com\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1564834744159-ff0ea41ba4b9?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo on Unsplash\u0027, creditUrl: \u0027https://unsplash.com\u0027 },\n    { url: \u0027https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=1200\u0026h=800\u0026fit=crop\u0026fm=webp\u0026q=80\u0027, credit: \u0027Photo on Unsplash\u0027, creditUrl: \u0027https://unsplash.com\u0027 },\n  ];\n  const pick = pool[Math.floor(Math.random() * pool.length)];\n  imageUrl = pick.url;\n  credit = pick.credit;\n  creditUrl = pick.creditUrl;\n  usedQuery = \u0027(default pool)\u0027;\n  usedFallback = true;\n}\n\nreturn [{\n  json: {\n    ...stripData,\n    imageUrl,\n    credit,\n    creditUrl,\n    usedQuery,\n    usedFallback,\n    attemptedQueries: attempted,\n  }\n}];"
+                                     },
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "29E6xavevmwNBwY2",
+                                                                 "name":  "Header Auth account 2"
+                                                             }
+                                      },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "process-prepare",
+                      "name":  "Process Unsplash, Generate Slug \u0026 Encode",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1792,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const data = $input.first().json;\n\nlet content = data.articleContent;\n// Normalize markdown: convert * bullets to - for renderer consistency\ncontent = content.replace(/^(\\s*)\\*\\s+/gm, \u0027$1- \u0027);\ncontent = content.split(\u0027UNSPLASH_PLACEHOLDER\u0027).join(data.imageUrl);\ncontent = content.split(\u0027CREDIT_PLACEHOLDER\u0027).join(data.credit);\ncontent = content.split(\u0027CREDIT_URL_PLACEHOLDER\u0027).join(data.creditUrl);\n\nconst title = data.articleTitle || data.topic;\nlet slug = title.toLowerCase()\n  .replace(/[^a-z0-9]+/g, \u0027-\u0027)\n  .replace(/^-|-$/g, \u0027\u0027);\nif (slug.length \u003e 60) {\n  const cut = slug.substring(0, 60);\n  const lastHyphen = cut.lastIndexOf(\u0027-\u0027);\n  slug = lastHyphen \u003e 0 ? cut.substring(0, lastHyphen) : cut;\n}\nslug = slug.replace(/-$/, \u0027\u0027);\n\nconst encodedContent = Buffer.from(content, \u0027utf-8\u0027).toString(\u0027base64\u0027);\n\nreturn [{\n  json: {\n    topic: data.topic,\n    rowNumber: data.rowNumber,\n    colA: data.colA,\n    colB: data.colB,\n    colC: data.colC,\n    todayDate: data.todayDate,\n    articleTitle: data.articleTitle,\n    slug,\n    imageUrl: data.imageUrl,\n    credit: data.credit,\n    creditUrl: data.creditUrl,\n    usedFallback: data.usedFallback,\n    usedQuery: data.usedQuery,\n    articleContent: content,\n    encodedContent,\n  }\n}];"
+                                     },
+                      "onError":  "stopWorkflow"
+                  },
+                  {
+                      "id":  "schedule-trigger",
+                      "name":  "Schedule Every 2 Days at 15:00",
+                      "type":  "n8n-nodes-base.scheduleTrigger",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       0,
+                                       400
+                                   ],
+                      "parameters":  {
+                                         "rule":  {
+                                                      "interval":  [
+                                                                       {
+                                                                           "field":  "days",
+                                                                           "daysInterval":  2,
+                                                                           "triggerAtHour":  15
+                                                                       }
+                                                                   ]
+                                                  }
+                                     }
+                  }
+              ],
+    "connections":  {
+                        "Read Veganster Topics":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Find First Pending Topic",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Find First Pending Topic":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Inject Today\u0027s Date",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Inject Today\u0027s Date":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Generate Veganster Blog with Gemini",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Google Gemini Chat Model":  {
+                                                         "ai_languageModel":  [
+                                                                                  [
+                                                                                      {
+                                                                                          "node":  "Generate Veganster Blog with Gemini",
+                                                                                          "type":  "ai_languageModel",
+                                                                                          "index":  0
+                                                                                      }
+                                                                                  ]
+                                                                              ]
+                                                     },
+                        "Generate Veganster Blog with Gemini":  {
+                                                                    "main":  [
+                                                                                 [
+                                                                                     {
+                                                                                         "node":  "Strip Markdown Fences",
+                                                                                         "type":  "main",
+                                                                                         "index":  0
+                                                                                     }
+                                                                                 ]
+                                                                             ]
+                                                                },
+                        "Prepare Sheet Update":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Mark Topic as Used",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Mark Topic as Used":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Output Success",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Push Blog to GitHub":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Build Facebook Message",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Build Facebook Message":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Post Blog to Facebook Page",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Post Blog to Facebook Page":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Prepare Sheet Update",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Strip Markdown Fences":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Search Unsplash with Fallback",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Search Unsplash with Fallback":  {
+                                                              "main":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Process Unsplash, Generate Slug \u0026 Encode",
+                                                                                   "type":  "main",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                                          },
+                        "Process Unsplash, Generate Slug \u0026 Encode":  {
+                                                                              "main":  [
+                                                                                           [
+                                                                                               {
+                                                                                                   "node":  "Push Blog to GitHub",
+                                                                                                   "type":  "main",
+                                                                                                   "index":  0
+                                                                                               }
+                                                                                           ]
+                                                                                       ]
+                                                                          },
+                        "Schedule Every 2 Days at 15:00":  {
+                                                               "main":  [
+                                                                            [
+                                                                                {
+                                                                                    "node":  "Read Veganster Topics",
+                                                                                    "type":  "main",
+                                                                                    "index":  0
+                                                                                }
+                                                                            ]
+                                                                        ]
+                                                           }
+                    },
+    "active":  false,
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "callerPolicy":  "workflowsFromSameOwner",
+                     "availableInMCP":  false
+                 },
+    "versionId":  "954f2921-57c8-4a59-9ff6-def0eae38aa6",
+    "meta":  null,
+    "id":  "cohLRog8NMWmZpDo",
+    "tags":  [
+
+             ],
+    "pinData":  {
+
+                }
+}
