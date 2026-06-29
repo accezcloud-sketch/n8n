@@ -1,0 +1,604 @@
+{
+  "name": "Wady Cloud Blog Auto Deploy",
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Schedule Every 2 Days at 18:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 2,
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "read-sheet",
+      "name": "Read Wady Topics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1IZ-LSfKT4MjBZUckoG0APRN6l_yxyj3CRDWrKziMVkg"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "842714749",
+          "cachedResultName": "Topics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IZ-LSfKT4MjBZUckoG0APRN6l_yxyj3CRDWrKziMVkg/edit#gid=842714749"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aPlOnNF1lEPwYkVQ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "find-pending",
+      "name": "Find First Pending Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items || items.length === 0) {\n  throw new Error('No data received from Google Sheets. Check the sheet ID, tab name, and permissions.');\n}\nfor (let i = 0; i < items.length; i++) {\n  const row = items[i].json;\n  const keys = Object.keys(row).filter(k => k !== 'row_number');\n  const colA = keys[0];\n  const colB = keys[1];\n  const colC = keys.length > 2 ? keys[2] : null;\n  if (colB && row[colB] && row[colB].toString().toLowerCase().trim() === 'pending' && row[colA] && row[colA].toString().trim()) {\n    const topic = row[colA].toString().trim();\n    return [{ json: { topic, rowNumber: row.row_number || (i + 2), colA, colB, colC } }];\n  }\n}\nthrow new Error('No pending topics found in the Wady Topics sheet (column B must contain \"pending\").');\n"
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "gen-en",
+      "name": "Generate English Blog",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are writing a bilingual blog post for Cloud Valley (wady.cloud), an Arabic-first digital agency serving businesses in Saudi Arabia and the Gulf. Cloud Valley designs websites, builds brand identities, runs SEO and digital marketing, produces content, manages social media, and builds e-commerce stores and mobile apps.\n\nWrite the ENGLISH version of a blog post on this topic: {{ $json.topic }}\n\nFirst decide which ONE of these services the topic best fits, then output its exact key:\n- website-design\n- search-engine-optimization\n- content-production\n- social-media-management\n- mobile-app-design\n- brand-identity\n- ecommerce-design\n- digital-marketing\n\nOutput EXACTLY in this format, with nothing before or after it (no code fences, no commentary):\nSERVICE: <one key from the list above>\nTITLE: <compelling English title, under 70 characters, no double-quote characters>\nEXCERPT: <one-sentence summary, no double-quote characters>\nDESCRIPTION: <one to two sentence SEO description, no double-quote characters>\nREADTIME: <integer number of minutes only, e.g. 8>\n---BODY---\n<the article body in markdown>\n\nBody rules — the site renderer supports ONLY the following, and anything else renders as broken literal text:\n- Use ## for section headings. NEVER use #, ###, or deeper.\n- Use - (hyphen) for bullet lists, and only when you have 4+ related items; otherwise prefer prose.\n- Use > for blockquotes; you may end a quote with a line like \"— Sarah, founder\" for attribution.\n- Do NOT use bold, italics, backticks/code, tables, images, or links — they are not supported and will show as raw characters.\n- Open with a 2-3 sentence hook paragraph with no heading.\n- 600-850 words across 4-6 ## sections.\n- Tone: confident, practical, founder-to-founder, written for business owners in Saudi Arabia and the Gulf. Use concrete local context (Riyadh, SAR budgets, Arabic-language audiences, WhatsApp, Google) where it fits naturally.\n- Start your output with \"SERVICE:\".\n",
+        "batching": {}
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "gemini-en",
+      "name": "Gemini Model EN",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        620
+      ],
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ctwWGjnx3iat3Soe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "clean-en",
+      "name": "Clean English Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.text;\nif (!raw) throw new Error('No content received from Gemini (English).');\nlet clean = raw.trim();\nif (clean.startsWith('```')) {\n  clean = clean.replace(/^```[a-z]*\\n?/i, '').replace(/\\n?```$/, '').trim();\n}\nconst marker = '---BODY---';\nconst idx = clean.indexOf(marker);\nif (idx === -1) throw new Error('English output is missing the ---BODY--- marker.');\nconst header = clean.slice(0, idx);\nconst body = clean.slice(idx + marker.length).trim();\n\nfunction field(name) {\n  const m = header.match(new RegExp('^' + name + ':\\\\s*(.+)$', 'mi'));\n  return m ? m[1].trim() : '';\n}\n\nconst validServices = ['website-design','search-engine-optimization','content-production','social-media-management','mobile-app-design','brand-identity','ecommerce-design','digital-marketing'];\nlet service = field('SERVICE').toLowerCase().replace(/[^a-z-]/g, '');\nif (!validServices.includes(service)) service = 'content-production';\n\nlet readMin = parseInt(field('READTIME'), 10);\nif (!readMin || readMin < 1) readMin = 8;\n\nconst ctx = $('Find First Pending Topic').first().json;\nreturn [{ json: {\n  topic: ctx.topic,\n  rowNumber: ctx.rowNumber,\n  colA: ctx.colA,\n  colB: ctx.colB,\n  colC: ctx.colC,\n  service,\n  enTitle: field('TITLE') || ctx.topic,\n  enExcerpt: field('EXCERPT'),\n  enDescription: field('DESCRIPTION'),\n  enReadMin: readMin,\n  enBody: body,\n} }];\n"
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "gen-ar",
+      "name": "Generate Arabic Translation",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1200,
+        400
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are localizing a Cloud Valley (wady.cloud) blog post into Arabic for business owners in Saudi Arabia and the Gulf. Produce natural, Arabic-FIRST writing — not a literal translation. Use clear Modern Standard Arabic that reads warmly and professionally, the way a trusted Saudi business consultant would write. Localize examples naturally (Riyadh, SAR, WhatsApp, local market context).\n\nEnglish title: {{ $('Clean English Output').first().json.enTitle }}\nEnglish excerpt: {{ $('Clean English Output').first().json.enExcerpt }}\n\nEnglish article to localize:\n{{ $('Clean English Output').first().json.enBody }}\n\nOutput EXACTLY in this format, with nothing before or after it (no code fences, no commentary):\nTITLE: <Arabic title, no double-quote characters>\nEXCERPT: <one-sentence Arabic summary, no double-quote characters>\nDESCRIPTION: <one to two sentence Arabic SEO description, no double-quote characters>\nREADTIME: <integer number of minutes only, e.g. 8>\n---BODY---\n<the Arabic article body in markdown>\n\nBody rules — identical to the English version; the renderer supports ONLY these:\n- Use ## for section headings. NEVER #, ###, or deeper.\n- Use - (hyphen) for bullet lists; use > for blockquotes (a line may end with \"— الاسم\" for attribution).\n- Do NOT use bold, italics, backticks/code, tables, images, or links.\n- Mirror the English structure: the same number of ## sections in the same order.\n- Start your output with \"TITLE:\".\n",
+        "batching": {}
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "gemini-ar",
+      "name": "Gemini Model AR",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        620
+      ],
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ctwWGjnx3iat3Soe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "clean-ar",
+      "name": "Clean Arabic Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.text;\nif (!raw) throw new Error('No content received from Gemini (Arabic).');\nlet clean = raw.trim();\nif (clean.startsWith('```')) {\n  clean = clean.replace(/^```[a-z]*\\n?/i, '').replace(/\\n?```$/, '').trim();\n}\nconst marker = '---BODY---';\nconst idx = clean.indexOf(marker);\nif (idx === -1) throw new Error('Arabic output is missing the ---BODY--- marker.');\nconst header = clean.slice(0, idx);\nconst body = clean.slice(idx + marker.length).trim();\n\nfunction field(name) {\n  const m = header.match(new RegExp('^' + name + ':\\\\s*(.+)$', 'mi'));\n  return m ? m[1].trim() : '';\n}\n\nconst en = $('Clean English Output').first().json;\nlet readMin = parseInt(field('READTIME'), 10);\nif (!readMin || readMin < 1) readMin = en.enReadMin;\n\nreturn [{ json: {\n  ...en,\n  arTitle: field('TITLE') || en.enTitle,\n  arExcerpt: field('EXCERPT'),\n  arDescription: field('DESCRIPTION'),\n  arReadMin: readMin,\n  arBody: body,\n} }];\n"
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "assemble",
+      "name": "Assemble Blog File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\n// Map the AI-chosen service to its blog number + bilingual kicker (matches existing posts in the repo)\nconst SERVICES = {\n  'website-design':             { num: 1, kicker: 'Design',            kickerAr: 'تصميم' },\n  'search-engine-optimization': { num: 2, kicker: 'SEO',               kickerAr: 'سيو' },\n  'content-production':         { num: 3, kicker: 'Content',           kickerAr: 'محتوى' },\n  'social-media-management':    { num: 4, kicker: 'Social media',      kickerAr: 'سوشيال ميديا' },\n  'mobile-app-design':          { num: 5, kicker: 'Mobile apps',       kickerAr: 'تطبيقات' },\n  'brand-identity':             { num: 6, kicker: 'Brand identity',    kickerAr: 'هوية تجارية' },\n  'ecommerce-design':           { num: 7, kicker: 'E-commerce',        kickerAr: 'تجارة إلكترونية' },\n  'digital-marketing':          { num: 8, kicker: 'Digital marketing', kickerAr: 'تسويق إلكتروني' },\n};\nconst svc = SERVICES[d.service] || SERVICES['content-production'];\n\n// Dates (code node $now respects the instance timezone, Asia/Riyadh)\nconst now = $now;\nconst iso = now.toFormat('yyyy-MM-dd');\nconst enMonths = ['January','February','March','April','May','June','July','August','September','October','November','December'];\nconst arMonths = ['كانون الثاني','شباط','آذار','نيسان','أيار','حزيران','تموز','آب','أيلول','تشرين الأول','تشرين الثاني','كانون الأول'];\nconst y = now.year, mo = now.month, day = now.day;\nconst enDate = enMonths[mo - 1] + ' ' + day + ', ' + y;\nconst toAr = (n) => String(n).replace(/[0-9]/g, (ch) => '٠١٢٣٤٥٦٧٨٩'[ch]);\nconst arDate = toAr(day) + ' ' + arMonths[mo - 1] + ' ' + toAr(y);\n\nconst num = String(svc.num).padStart(2, '0');\nconst numAr = toAr(num);\n\nconst enRead = d.enReadMin + ' min';\nconst arUnit = (d.arReadMin >= 3 && d.arReadMin <= 10) ? 'دقائق' : 'دقيقة';\nconst arRead = toAr(d.arReadMin) + ' ' + arUnit;\n\n// Wrap every text value in double quotes; the repo frontmatter parser strips one\n// surrounding pair, so we replace any inner double quote with a typographic one.\nconst q = (s) => '\"' + String(s == null ? '' : s).replace(/\"/g, '’').replace(/\\r?\\n/g, ' ').trim() + '\"';\n\nconst fm = [\n  '---',\n  'title: ' + q(d.enTitle),\n  'titleAr: ' + q(d.arTitle),\n  'excerpt: ' + q(d.enExcerpt),\n  'excerptAr: ' + q(d.arExcerpt),\n  'description: ' + q(d.enDescription),\n  'descriptionAr: ' + q(d.arDescription),\n  'num: ' + num,\n  'numAr: ' + numAr,\n  'kicker: ' + q(svc.kicker),\n  'kickerAr: ' + q(svc.kickerAr),\n  'date: ' + q(enDate),\n  'dateAr: ' + q(arDate),\n  'isoDate: ' + iso,\n  'readTime: ' + q(enRead),\n  'readTimeAr: ' + q(arRead),\n  'serviceNum: ' + num,\n  '---',\n].join('\\n');\n\n// Defensive normalization: enforce the renderer's supported markdown subset\nfunction normalize(md) {\n  let t = (md || '').trim();\n  t = t.replace(/^(\\s*)\\*\\s+/gm, '$1- ');   // * bullets -> - bullets\n  t = t.replace(/^#{3,}\\s*/gm, '## ');        // ### or deeper -> ##\n  t = t.replace(/\\*\\*(.+?)\\*\\*/g, '$1');      // strip **bold**\n  return t.trim();\n}\nconst enBody = normalize(d.enBody);\nconst arBody = normalize(d.arBody);\nconst fileBody = enBody + '\\n\\n<!-- AR -->\\n\\n' + arBody;\nconst fileContent = fm + '\\n\\n' + fileBody + '\\n';\n\n// Slug from the English title (<= 60 chars, no trailing hyphen)\nlet slug = (d.enTitle || d.topic).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');\nif (slug.length > 60) {\n  const cut = slug.substring(0, 60);\n  const lh = cut.lastIndexOf('-');\n  slug = lh > 0 ? cut.substring(0, lh) : cut;\n}\nslug = slug.replace(/-$/, '') || ('post-' + iso);\n\nreturn [{ json: {\n  topic: d.topic,\n  rowNumber: d.rowNumber,\n  colA: d.colA,\n  colB: d.colB,\n  colC: d.colC,\n  todayDate: iso,\n  service: d.service,\n  num,\n  slug,\n  articleTitle: d.enTitle,\n  fileContent,\n} }];\n"
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "push-github",
+      "name": "Push Blog to GitHub",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        400
+      ],
+      "parameters": {
+        "resource": "file",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "accezcloud-sketch"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cloudvalley"
+        },
+        "filePath": "={{ 'src/content/blog/' + $json.slug + '.md' }}",
+        "fileContent": "={{ $json.fileContent }}",
+        "commitMessage": "={{ 'feat(blog): add ' + $json.slug }}",
+        "additionalParameters": {
+          "branch": {
+            "branch": "master"
+          }
+        }
+      },
+      "credentials": {
+        "githubApi": {
+          "id": "dZ6HBZBJmSDSNW9z",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "prepare-update",
+      "name": "Prepare Sheet Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const t = $('Assemble Blog File').first().json;\nconst row = {};\nrow[t.colA] = t.topic;\nrow[t.colB] = 'used';\nif (t.colC) row[t.colC] = t.todayDate;\nreturn [{ json: row }];\n"
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "update-sheet",
+      "name": "Mark Topic as Used",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        400
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1IZ-LSfKT4MjBZUckoG0APRN6l_yxyj3CRDWrKziMVkg"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "842714749",
+          "cachedResultName": "Topics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IZ-LSfKT4MjBZUckoG0APRN6l_yxyj3CRDWrKziMVkg/edit#gid=842714749"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "={{ $('Assemble Blog File').first().json.colA }}"
+          ],
+          "value": {}
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aPlOnNF1lEPwYkVQ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "output-success",
+      "name": "Output Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "status",
+              "value": "Success",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "topic",
+              "value": "={{ $('Assemble Blog File').first().json.topic }}",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "service",
+              "value": "={{ $('Assemble Blog File').first().json.service }}",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "githubFileUrl",
+              "value": "={{ 'https://github.com/accezcloud-sketch/cloudvalley/blob/master/src/content/blog/' + $('Assemble Blog File').first().json.slug + '.md' }}",
+              "type": "string"
+            },
+            {
+              "id": "s5",
+              "name": "liveUrlEn",
+              "value": "={{ 'https://wady.cloud/en/blog/' + $('Assemble Blog File').first().json.slug }}",
+              "type": "string"
+            },
+            {
+              "id": "s6",
+              "name": "liveUrlAr",
+              "value": "={{ 'https://wady.cloud/ar/blog/' + $('Assemble Blog File').first().json.slug }}",
+              "type": "string"
+            },
+            {
+              "id": "s7",
+              "name": "sheetUpdated",
+              "value": "true",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "Sticky 1",
+      "name": "Sticky 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        200
+      ],
+      "parameters": {
+        "content": "## 1. Schedule\nRuns every 2 days at 18:00 (Asia/Riyadh).",
+        "width": 260,
+        "height": 200,
+        "color": 4
+      }
+    },
+    {
+      "id": "Sticky 2",
+      "name": "Sticky 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        180
+      ],
+      "parameters": {
+        "content": "## 2-3. Read & Find Topic\nReads the Wady topics Google Sheet, then picks the first row where column B = `pending`. Columns: A = topic, B = status, C = date used.",
+        "width": 460,
+        "height": 200,
+        "color": 6
+      }
+    },
+    {
+      "id": "Sticky 3",
+      "name": "Sticky 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        160
+      ],
+      "parameters": {
+        "content": "## 4-5. Generate English + Pick Service\nGemini writes the English post AND chooses which of the 8 Cloud Valley services it belongs to. Clean node parses the SERVICE / TITLE / EXCERPT / DESCRIPTION / READTIME header and the body.",
+        "width": 460,
+        "height": 200,
+        "color": 6
+      }
+    },
+    {
+      "id": "Sticky 4",
+      "name": "Sticky 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        160
+      ],
+      "parameters": {
+        "content": "## 6-7. Localize to Arabic\nSecond Gemini call produces an Arabic-first localization (not a literal translation), mirroring the English structure.",
+        "width": 440,
+        "height": 200,
+        "color": 6
+      }
+    },
+    {
+      "id": "Sticky 5",
+      "name": "Sticky 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        140
+      ],
+      "parameters": {
+        "content": "## 8. Assemble Bilingual File\nBuilds the single .md: shared frontmatter (title/titleAr, dates EN + Levantine Arabic, num/kicker from the chosen service) + English body + `<!-- AR -->` marker + Arabic body. Enforces the renderer-safe markdown subset.",
+        "width": 480,
+        "height": 200,
+        "color": 3
+      }
+    },
+    {
+      "id": "Sticky 6",
+      "name": "Sticky 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        180
+      ],
+      "parameters": {
+        "content": "## 9. Push to GitHub\nCommits to accezcloud-sketch/cloudvalley → src/content/blog/<slug>.md on `master`. stopWorkflow on error so the sheet is NOT marked used if the push fails.",
+        "width": 460,
+        "height": 200,
+        "color": 2
+      }
+    },
+    {
+      "id": "Sticky 7",
+      "name": "Sticky 7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2380,
+        180
+      ],
+      "parameters": {
+        "content": "## 10-11. Mark Used & Report\nOnly runs after a successful push. Sets column B = `used`, column C = today, then returns the file + live URLs.",
+        "width": 460,
+        "height": 200,
+        "color": 5
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Every 2 Days at 18:00": {
+      "main": [
+        [
+          {
+            "node": "Read Wady Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Wady Topics": {
+      "main": [
+        [
+          {
+            "node": "Find First Pending Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find First Pending Topic": {
+      "main": [
+        [
+          {
+            "node": "Generate English Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model EN": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate English Blog",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate English Blog": {
+      "main": [
+        [
+          {
+            "node": "Clean English Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean English Output": {
+      "main": [
+        [
+          {
+            "node": "Generate Arabic Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model AR": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Arabic Translation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Arabic Translation": {
+      "main": [
+        [
+          {
+            "node": "Clean Arabic Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Arabic Output": {
+      "main": [
+        [
+          {
+            "node": "Assemble Blog File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Blog File": {
+      "main": [
+        [
+          {
+            "node": "Push Blog to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push Blog to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Prepare Sheet Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Sheet Update": {
+      "main": [
+        [
+          {
+            "node": "Mark Topic as Used",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Topic as Used": {
+      "main": [
+        [
+          {
+            "node": "Output Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "tags": [],
+  "pinData": {}
+}

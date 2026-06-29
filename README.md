@@ -5,8 +5,9 @@ Self-hosted n8n on a VPS via Docker. Runs three blog auto-deploy workflows that 
 - **Accez Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/AccezWebsite`, posts to the Accez Facebook page (every 2 days at **09:00**)
 - **CloudElite Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/CloudEliteSite`, posts to the CloudElite Facebook page (every 2 days at **12:00**)
 - **Veganster Blog Auto Deploy** — English posts to `accezcloud-sketch/veganster`, posts to the Veganster Facebook page (every 2 days at **15:00**)
+- **Wady Cloud Blog Auto Deploy** — bilingual EN+AR posts (single file, `<!-- AR -->` marker) to `accezcloud-sketch/cloudvalley` on the `master` branch; no images, no Facebook (every 2 days at **18:00**)
 
-All three are timezone-anchored to `Asia/Riyadh` and read pending topics from per-brand Google Sheets.
+All four are timezone-anchored to `Asia/Riyadh` and read pending topics from per-brand Google Sheets.
 
 ## Prerequisites on the VPS
 
@@ -97,6 +98,7 @@ Import order doesn't matter. All three import as **inactive** with credentials u
 | `workflows/accez-blog-auto-deploy.json` | Accez Blog Auto Deploy | Every 2 days at 09:00 |
 | `workflows/cloudelite-blog-auto-deploy.json` | CloudElite Blog Auto Deploy | Every 2 days at 12:00 |
 | `workflows/veganster-blog-auto-deploy.json` | Veganster Blog Auto Deploy | Every 2 days at 15:00 |
+| `workflows/wady-blog-auto-deploy.json` | Wady Cloud Blog Auto Deploy | Every 2 days at 18:00 |
 
 ## 7. Re-create credentials
 
@@ -170,3 +172,4 @@ docker compose up -d
 - `workflows/accez-blog-auto-deploy.json` — Accez bilingual blog workflow
 - `workflows/cloudelite-blog-auto-deploy.json` — CloudElite bilingual blog workflow
 - `workflows/veganster-blog-auto-deploy.json` — Veganster English blog workflow
+- `workflows/wady-blog-auto-deploy.json` — Wady Cloud bilingual (EN+AR) blog workflow. Reuses the existing `Google Sheets account`, `Google Gemini(PaLM) Api account`, and `GitHub account` credentials — no new credential needed. Topics Sheet ID and tab (`gid 842714749`) are already set; just re-link the credentials on import.
