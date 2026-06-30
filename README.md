@@ -5,7 +5,7 @@ Self-hosted n8n on a VPS via Docker. Runs three blog auto-deploy workflows that 
 - **Accez Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/AccezWebsite`, posts to the Accez Facebook page (every 2 days at **09:00**)
 - **CloudElite Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/CloudEliteSite`, posts to the CloudElite Facebook page (every 2 days at **12:00**)
 - **Veganster Blog Auto Deploy** — English posts to `accezcloud-sketch/veganster`, posts to the Veganster Facebook page (every 2 days at **15:00**)
-- **Wady Cloud Blog Auto Deploy** — bilingual EN+AR posts (single file, `<!-- AR -->` marker) to `accezcloud-sketch/cloudvalley` on the `master` branch; no images, no Facebook (every 2 days at **18:00**)
+- **Wady Cloud Blog Auto Deploy** — bilingual EN+AR posts (single file, `<!-- AR -->` marker) to `accezcloud-sketch/cloudvalley` on the `master` branch (no images), then announces on the Wady Cloud Facebook page (every 2 days at **18:00**)
 
 All four are timezone-anchored to `Asia/Riyadh` and read pending topics from per-brand Google Sheets.
 
@@ -113,6 +113,7 @@ Credentials are encrypted to the original instance and **never travel with the w
 | `Facebook Graph account` | Facebook Graph API | Accez Facebook post | Meta for Developers → Page access token for the Accez page (id `425256947348313`) |
 | `Facebook Cloud Elite Page Token` | Facebook Graph API | CloudElite Facebook post | Page access token for the CloudElite page (id `854491451307629`) |
 | `Facebook Veganster Page Token` | Facebook Graph API | Veganster Facebook post | Page access token for the Veganster page (id `1712271652133742`) |
+| `Facebook Wady Cloud Page Token` | Facebook Graph API | Wady Cloud Facebook post | Page access token for the Wady Cloud page (id `1014705518402959`) |
 
 Page access tokens should be the long-lived variant (60-day) or a System User token if you want them not to expire.
 
@@ -172,4 +173,4 @@ docker compose up -d
 - `workflows/accez-blog-auto-deploy.json` — Accez bilingual blog workflow
 - `workflows/cloudelite-blog-auto-deploy.json` — CloudElite bilingual blog workflow
 - `workflows/veganster-blog-auto-deploy.json` — Veganster English blog workflow
-- `workflows/wady-blog-auto-deploy.json` — Wady Cloud bilingual (EN+AR) blog workflow. Reuses the existing `Google Sheets account`, `Google Gemini(PaLM) Api account`, and `GitHub account` credentials — no new credential needed. Topics Sheet ID and tab (`gid 842714749`) are already set; just re-link the credentials on import.
+- `workflows/wady-blog-auto-deploy.json` — Wady Cloud bilingual (EN+AR) blog workflow. Reuses the existing `Google Sheets account`, `Google Gemini(PaLM) Api account`, and `GitHub account` credentials, plus a `Facebook Wady Cloud Page Token` (Facebook Graph API) for the Facebook announcement. Topics Sheet ID and tab (`gid 842714749`) are already set; re-link the credentials on import.

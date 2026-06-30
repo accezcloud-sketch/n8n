@@ -221,12 +221,69 @@
       "onError": "stopWorkflow"
     },
     {
+      "id": "build-fb",
+      "name": "Build Facebook Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2160,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb1",
+              "name": "facebookMessage",
+              "value": "={{ '🚀 مقال جديد من Wady Cloud\\n\\n' + $('Clean Arabic Output').first().json.arTitle + '\\n\\n' + $('Clean Arabic Output').first().json.arExcerpt + '\\n\\n📖 اقرأ المقال: https://wady.cloud/ar/blog/' + $('Assemble Blog File').first().json.slug + '\\n\\n— — —\\n\\n🚀 New from Wady Cloud: ' + $('Clean English Output').first().json.enTitle + '\\n' + $('Clean English Output').first().json.enExcerpt + '\\n📖 Read: https://wady.cloud/en/blog/' + $('Assemble Blog File').first().json.slug + '\\n\\n#WadyCloud #السعودية #الرياض #تصميم_مواقع #تسويق_رقمي' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "post-fb",
+      "name": "Post Blog to Facebook Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v25.0/1014705518402959/feed",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.facebookMessage }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "oolOyUaVNbBZFURu",
+          "name": "Facebook Wady Cloud Page Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
       "id": "prepare-update",
       "name": "Prepare Sheet Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
+        2640,
         400
       ],
       "parameters": {
@@ -240,7 +297,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        2400,
+        2880,
         400
       ],
       "parameters": {
@@ -282,7 +339,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2640,
+        3120,
         400
       ],
       "parameters": {
@@ -432,16 +489,32 @@
       }
     },
     {
+      "id": "Sticky FB",
+      "name": "Sticky FB",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2140,
+        160
+      ],
+      "parameters": {
+        "content": "## 10-11. Announce on Facebook\nBuilds a bilingual post (Arabic lead + English) with the live URLs, then posts to the Wady Cloud page via Graph API. `continueRegularOutput` on error so a Facebook failure never blocks the sheet update.",
+        "width": 460,
+        "height": 200,
+        "color": 1
+      }
+    },
+    {
       "id": "Sticky 7",
       "name": "Sticky 7",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2380,
+        2620,
         180
       ],
       "parameters": {
-        "content": "## 10-11. Mark Used & Report\nOnly runs after a successful push. Sets column B = `used`, column C = today, then returns the file + live URLs.",
+        "content": "## 12-13. Mark Used & Report\nOnly runs after a successful push. Sets column B = `used`, column C = today, then returns the file + live URLs.",
         "width": 460,
         "height": 200,
         "color": 5
@@ -560,6 +633,28 @@
       ]
     },
     "Push Blog to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Build Facebook Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Facebook Message": {
+      "main": [
+        [
+          {
+            "node": "Post Blog to Facebook Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Blog to Facebook Page": {
       "main": [
         [
           {
