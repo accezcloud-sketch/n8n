@@ -3,7 +3,7 @@
   "nodes": [
     {
       "id": "schedule",
-      "name": "Schedule Every 2 Days at 18:00",
+      "name": "Schedule Daily at 18:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
@@ -15,7 +15,7 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 2,
+              "daysInterval": 1,
               "triggerAtHour": 18
             }
           ]
@@ -28,7 +28,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        240,
+        220,
         400
       ],
       "parameters": {
@@ -52,6 +52,23 @@
           "name": "Google Sheets account"
         }
       },
+      "onError": "stopWorkflow",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Cadence gate ───────────────────────────────────────────────────────────\n// Why this node exists.\n//\n// The Schedule Trigger's \"every 2 days\" option is NOT a calendar rule. n8n\n// compiles it to a cron that fires EVERY day at 18:00 and then gates it with\n// recurrenceCheck(), which stamps \"last fired = today\" the moment the trigger\n// emits — before a single downstream node has run. So when a run died later\n// (Gemini 5xx, a GitHub blip, a Sheets hiccup) the slot was already spent and\n// the next attempt was a full 2 days away. That is what produced the 4-day and\n// 6-day gaps in the blog: one lost run cost four days, two cost six.\n//\n// The trigger now fires daily and the cadence is decided here, from the sheet\n// itself — the real record of when we last published. A run that fails is\n// simply retried tomorrow instead of being lost for two days.\n\nconst MIN_DAYS_BETWEEN_POSTS = 2;\n\nconst items = $input.all();\nif (items.length === 0) {\n  throw new Error(\n    'No rows received from Google Sheets. Check the sheet ID, tab name, and credential permissions.',\n  );\n}\n\n// Normalise a \"Date Used\" cell to yyyy-MM-dd. Accepts the ISO value this\n// workflow writes, plus the formats Google Sheets may reformat it into.\nfunction toIsoDate(value) {\n  const s = String(value == null ? '' : value).trim();\n  if (!s) return null;\n\n  const iso = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];\n\n  const slash = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/); // M/D/YYYY\n  if (slash) {\n    const pad = (n) => String(n).padStart(2, '0');\n    return slash[3] + '-' + pad(slash[1]) + '-' + pad(slash[2]);\n  }\n\n  const parsed = new Date(s);\n  if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);\n\n  return null;\n}\n\nlet usedCount = 0;\nlet lastUsed = null;\n\nfor (const item of items) {\n  const row = item.json;\n  const keys = Object.keys(row).filter((k) => k !== 'row_number');\n  const statusKey = keys[1];\n  const dateKey = keys.length > 2 ? keys[2] : null;\n  if (!statusKey) continue;\n\n  const status = String(row[statusKey] == null ? '' : row[statusKey]).toLowerCase().trim();\n  if (status !== 'used') continue;\n  usedCount++;\n\n  const iso = dateKey ? toIsoDate(row[dateKey]) : null;\n  if (iso && (!lastUsed || iso > lastUsed)) lastUsed = iso;\n}\n\n// Genuine first run — nothing published yet, so go ahead.\nif (usedCount === 0) return items;\n\n// Rows are marked used but not one date is readable. Fail loudly instead of\n// publishing every single day and burning the whole topic queue.\nif (!lastUsed) {\n  throw new Error(\n    usedCount + ' row(s) are marked \"used\" but none has a readable \"Date Used\" value. ' +\n    'Expected yyyy-MM-dd (e.g. 2026-07-18). Fix column C before the schedule can resume.',\n  );\n}\n\nconst today = $now.toFormat('yyyy-MM-dd');\nconst toUtc = (s) =>\n  Date.UTC(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)));\nconst daysSince = Math.round((toUtc(today) - toUtc(lastUsed)) / 86400000);\n\n// Not due yet: return no items. Every downstream node is skipped and the\n// execution ends cleanly — no error, no alert, nothing marked used.\nif (daysSince < MIN_DAYS_BETWEEN_POSTS) return [];\n\n// Due. Pass the rows through untouched — \"Find First Pending Topic\" reads the\n// sheet's own column order, so no extra keys may be added here.\nreturn items;\n"
+      },
+      "id": "cadence-gate",
+      "name": "Skip Unless Due",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        400
+      ],
       "onError": "stopWorkflow"
     },
     {
@@ -60,7 +77,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
+        660,
         400
       ],
       "parameters": {
@@ -74,7 +91,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        720,
+        880,
         400
       ],
       "parameters": {
@@ -82,7 +99,10 @@
         "text": "=You are writing a bilingual blog post for Cloud Valley (wady.cloud), an Arabic-first digital agency serving businesses in Saudi Arabia and the Gulf. Cloud Valley designs websites, builds brand identities, runs SEO and digital marketing, produces content, manages social media, and builds e-commerce stores and mobile apps.\n\nWrite the ENGLISH version of a blog post on this topic: {{ $json.topic }}\n\nFirst decide which ONE of these services the topic best fits, then output its exact key:\n- website-design\n- search-engine-optimization\n- content-production\n- social-media-management\n- mobile-app-design\n- brand-identity\n- ecommerce-design\n- digital-marketing\n\nOutput EXACTLY in this format, with nothing before or after it (no code fences, no commentary):\nSERVICE: <one key from the list above>\nTITLE: <compelling English title, under 70 characters, no double-quote characters>\nEXCERPT: <one-sentence summary, no double-quote characters>\nDESCRIPTION: <one to two sentence SEO description, no double-quote characters>\nREADTIME: <integer number of minutes only, e.g. 8>\n===BODY===\n<the article body in markdown>\n\nBody rules — the site renderer supports ONLY the following, and anything else renders as broken literal text:\n- Use ## for section headings. NEVER use #, ###, or deeper.\n- Use - (hyphen) for bullet lists, and only when you have 4+ related items; otherwise prefer prose.\n- Use > for blockquotes; you may end a quote with a line like \"— Sarah, founder\" for attribution.\n- Do NOT use bold, italics, backticks/code, tables, images, or links — they are not supported and will show as raw characters.\n- Open with a 2-3 sentence hook paragraph with no heading.\n- 600-850 words across 4-6 ## sections.\n- Tone: confident, practical, founder-to-founder, written for business owners in Saudi Arabia and the Gulf. Use concrete local context (Riyadh, SAR budgets, Arabic-language audiences, WhatsApp, Google) where it fits naturally.\n- Emit every header field (SERVICE, TITLE, EXCERPT, DESCRIPTION, READTIME), each on its own line, then the separator ===BODY=== alone on its own line, then the article starting on the next line. Do not skip EXCERPT and do not attach text to the ===BODY=== line.\n- Start your output with \"SERVICE:\".\n",
         "batching": {}
       },
-      "onError": "stopWorkflow"
+      "onError": "stopWorkflow",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "gemini-en",
@@ -90,7 +110,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        720,
+        880,
         620
       ],
       "parameters": {
@@ -110,7 +130,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
+        1100,
         400
       ],
       "parameters": {
@@ -124,7 +144,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        1200,
+        1320,
         400
       ],
       "parameters": {
@@ -132,7 +152,10 @@
         "text": "=You are localizing a Cloud Valley (wady.cloud) blog post into Arabic for business owners in Saudi Arabia and the Gulf. Produce natural, Arabic-FIRST writing — not a literal translation. Use clear Modern Standard Arabic that reads warmly and professionally, the way a trusted Saudi business consultant would write. Localize examples naturally (Riyadh, SAR, WhatsApp, local market context).\n\nEnglish title: {{ $('Clean English Output').first().json.enTitle }}\nEnglish excerpt: {{ $('Clean English Output').first().json.enExcerpt }}\n\nEnglish article to localize:\n{{ $('Clean English Output').first().json.enBody }}\n\nOutput EXACTLY in this format, with nothing before or after it (no code fences, no commentary):\nTITLE: <Arabic title, no double-quote characters>\nEXCERPT: <one-sentence Arabic summary, no double-quote characters>\nDESCRIPTION: <one to two sentence Arabic SEO description, no double-quote characters>\nREADTIME: <integer number of minutes only, e.g. 8>\n===BODY===\n<the Arabic article body in markdown>\n\nBody rules — identical to the English version; the renderer supports ONLY these:\n- Use ## for section headings. NEVER #, ###, or deeper.\n- Use - (hyphen) for bullet lists; use > for blockquotes (a line may end with \"— الاسم\" for attribution).\n- Do NOT use bold, italics, backticks/code, tables, images, or links.\n- Mirror the English structure: the same number of ## sections in the same order.\n- Emit every header field (TITLE, EXCERPT, DESCRIPTION, READTIME), each on its own line, then the separator ===BODY=== alone on its own line, then the article starting on the next line. Do not skip EXCERPT and do not attach text to the ===BODY=== line.\n- Start your output with \"TITLE:\".\n",
         "batching": {}
       },
-      "onError": "stopWorkflow"
+      "onError": "stopWorkflow",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "gemini-ar",
@@ -140,7 +163,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1200,
+        1320,
         620
       ],
       "parameters": {
@@ -160,7 +183,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1440,
+        1540,
         400
       ],
       "parameters": {
@@ -174,7 +197,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1680,
+        1760,
         400
       ],
       "parameters": {
@@ -188,7 +211,7 @@
       "type": "n8n-nodes-base.github",
       "typeVersion": 1.1,
       "position": [
-        1920,
+        1980,
         400
       ],
       "parameters": {
@@ -218,64 +241,10 @@
           "name": "GitHub account"
         }
       },
-      "onError": "stopWorkflow"
-    },
-    {
-      "id": "build-fb",
-      "name": "Build Facebook Message",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        2160,
-        400
-      ],
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "fb1",
-              "name": "facebookMessage",
-              "value": "={{ '🚀 مقال جديد من Wady Cloud\\n\\n' + $('Clean Arabic Output').first().json.arTitle + '\\n\\n' + $('Clean Arabic Output').first().json.arExcerpt + '\\n\\n📖 اقرأ المقال: https://wady.cloud/ar/blog/' + $('Assemble Blog File').first().json.slug + '\\n\\n— — —\\n\\n🚀 New from Wady Cloud: ' + $('Clean English Output').first().json.enTitle + '\\n' + $('Clean English Output').first().json.enExcerpt + '\\n📖 Read: https://wady.cloud/en/blog/' + $('Assemble Blog File').first().json.slug + '\\n\\n#WadyCloud #السعودية #الرياض #تصميم_مواقع #تسويق_رقمي' }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "post-fb",
-      "name": "Post Blog to Facebook Page",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2400,
-        400
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "https://graph.facebook.com/v25.0/1014705518402959/feed",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "facebookGraphApi",
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "message",
-              "value": "={{ $json.facebookMessage }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "credentials": {
-        "facebookGraphApi": {
-          "id": "oolOyUaVNbBZFURu",
-          "name": "Facebook Wady Cloud Page Token"
-        }
-      },
-      "onError": "continueRegularOutput"
+      "onError": "stopWorkflow",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "prepare-update",
@@ -283,7 +252,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2640,
+        2200,
         400
       ],
       "parameters": {
@@ -297,7 +266,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        2880,
+        2420,
         400
       ],
       "parameters": {
@@ -331,7 +300,70 @@
           "name": "Google Sheets account"
         }
       },
-      "onError": "stopWorkflow"
+      "onError": "stopWorkflow",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "build-fb",
+      "name": "Build Facebook Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb1",
+              "name": "facebookMessage",
+              "value": "={{ '🚀 مقال جديد من Wady Cloud\\n\\n' + $('Clean Arabic Output').first().json.arTitle + '\\n\\n' + $('Clean Arabic Output').first().json.arExcerpt + '\\n\\n📖 اقرأ المقال: https://wady.cloud/ar/blog/' + $('Assemble Blog File').first().json.slug + '\\n\\n— — —\\n\\n🚀 New from Wady Cloud: ' + $('Clean English Output').first().json.enTitle + '\\n' + $('Clean English Output').first().json.enExcerpt + '\\n📖 Read: https://wady.cloud/en/blog/' + $('Assemble Blog File').first().json.slug + '\\n\\n#WadyCloud #السعودية #الرياض #تصميم_مواقع #تسويق_رقمي' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "post-fb",
+      "name": "Post Blog to Facebook Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v25.0/1014705518402959/feed",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.facebookMessage }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "oolOyUaVNbBZFURu",
+          "name": "Facebook Wady Cloud Page Token"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
     },
     {
       "id": "output-success",
@@ -339,7 +371,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        3120,
+        3080,
         400
       ],
       "parameters": {
@@ -393,136 +425,205 @@
       }
     },
     {
-      "id": "Sticky 1",
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "On This Workflow Failing",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Flatten the Error Trigger payload into a single row for the log tab.\n// Payload shape:\n//   { execution: { id, url, error: { message }, lastNodeExecuted, mode },\n//     workflow:  { id, name } }\n\nconst d = $input.first().json;\nconst execution = d.execution || {};\nconst workflow = d.workflow || {};\nconst error = execution.error || {};\n\nconst message = String(error.message || 'Unknown error')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .slice(0, 500);\n\nreturn [{\n  json: {\n    'Timestamp': $now.toFormat('yyyy-MM-dd HH:mm:ss'),\n    'Workflow': workflow.name || '(unknown)',\n    'Failed Node': execution.lastNodeExecuted || '(unknown)',\n    'Error': message,\n    'Execution URL': execution.url || '',\n  },\n}];\n"
+      },
+      "id": "format-failure",
+      "name": "Format Failure Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1IZ-LSfKT4MjBZUckoG0APRN6l_yxyj3CRDWrKziMVkg"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "log-failure",
+      "name": "Log Failure to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        440,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aPlOnNF1lEPwYkVQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 1-3. Schedule & cadence gate\nThe trigger fires **every day** at 18:00 (Asia/Riyadh). The every-2-days cadence is enforced by **Skip Unless Due**, which reads the sheet's `Date Used` column.\n\n**Why it is built this way:** the Schedule Trigger's \"every 2 days\" option is not a calendar rule. n8n fires the cron daily and gates it with `recurrenceCheck()`, which stamps \"last fired = today\" the instant the trigger emits — before any node runs. A run that died downstream burned the slot, so the next attempt was 2 days later. That is what caused the 4-day and 6-day gaps in the blog.\n\nDeciding the cadence from the sheet means a failed run retries **tomorrow**.",
+        "height": 340,
+        "width": 620
+      },
+      "id": "sticky-1",
       "name": "Sticky 1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -40,
-        200
-      ],
-      "parameters": {
-        "content": "## 1. Schedule\nRuns every 2 days at 18:00 (Asia/Riyadh).",
-        "width": 260,
-        "height": 200,
-        "color": 4
-      }
+        -60,
+        120
+      ]
     },
     {
-      "id": "Sticky 2",
+      "parameters": {
+        "content": "## 4. Find Topic\nPicks the first row where column B = `pending`.\n\nA = topic, B = status, C = date used.",
+        "height": 220,
+        "width": 240
+      },
+      "id": "sticky-2",
       "name": "Sticky 2",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
+        620,
         180
-      ],
-      "parameters": {
-        "content": "## 2-3. Read & Find Topic\nReads the Wady topics Google Sheet, then picks the first row where column B = `pending`. Columns: A = topic, B = status, C = date used.",
-        "width": 460,
-        "height": 200,
-        "color": 6
-      }
+      ]
     },
     {
-      "id": "Sticky 3",
+      "parameters": {
+        "content": "## 5-6. Generate English + Pick Service\nGemini writes the English post AND chooses which of the 8 Cloud Valley services it belongs to. The Clean node parses the SERVICE / TITLE / EXCERPT / DESCRIPTION / READTIME header and the body.\n\nRetries 3x on Gemini 429/503.",
+        "height": 240,
+        "width": 460
+      },
+      "id": "sticky-3",
       "name": "Sticky 3",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        700,
-        160
-      ],
-      "parameters": {
-        "content": "## 4-5. Generate English + Pick Service\nGemini writes the English post AND chooses which of the 8 Cloud Valley services it belongs to. Clean node parses the SERVICE / TITLE / EXCERPT / DESCRIPTION / READTIME header and the body.",
-        "width": 460,
-        "height": 200,
-        "color": 6
-      }
+        860,
+        140
+      ]
     },
     {
-      "id": "Sticky 4",
+      "parameters": {
+        "content": "## 7-8. Localize to Arabic\nSecond Gemini call produces an Arabic-first localization (not a literal translation), mirroring the English structure.\n\nRetries 3x on Gemini 429/503.",
+        "height": 240,
+        "width": 460
+      },
+      "id": "sticky-4",
       "name": "Sticky 4",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1180,
-        160
-      ],
-      "parameters": {
-        "content": "## 6-7. Localize to Arabic\nSecond Gemini call produces an Arabic-first localization (not a literal translation), mirroring the English structure.",
-        "width": 440,
-        "height": 200,
-        "color": 6
-      }
+        1300,
+        140
+      ]
     },
     {
-      "id": "Sticky 5",
+      "parameters": {
+        "content": "## 9. Assemble File\nShared frontmatter + English body + `<!-- AR -->` + Arabic body. Enforces the renderer-safe markdown subset.",
+        "height": 240,
+        "width": 240
+      },
+      "id": "sticky-5",
       "name": "Sticky 5",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1620,
+        1740,
         140
-      ],
-      "parameters": {
-        "content": "## 8. Assemble Bilingual File\nBuilds the single .md: shared frontmatter (title/titleAr, dates EN + Levantine Arabic, num/kicker from the chosen service) + English body + `<!-- AR -->` marker + Arabic body. Enforces the renderer-safe markdown subset.",
-        "width": 480,
-        "height": 200,
-        "color": 3
-      }
+      ]
     },
     {
-      "id": "Sticky 6",
+      "parameters": {
+        "content": "## 10. Push to GitHub\n`cloudvalley` → `src/content/blog/<slug>.md` on `master`.\n\n`stopWorkflow` on error, so the topic is NOT marked used if the push fails.",
+        "height": 240,
+        "width": 240
+      },
+      "id": "sticky-6",
       "name": "Sticky 6",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1900,
-        180
-      ],
-      "parameters": {
-        "content": "## 9. Push to GitHub\nCommits to accezcloud-sketch/cloudvalley → src/content/blog/<slug>.md on `master`. stopWorkflow on error so the sheet is NOT marked used if the push fails.",
-        "width": 460,
-        "height": 200,
-        "color": 2
-      }
+        1960,
+        140
+      ]
     },
     {
-      "id": "Sticky FB",
-      "name": "Sticky FB",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        2140,
-        160
-      ],
       "parameters": {
-        "content": "## 10-11. Announce on Facebook\nBuilds a bilingual post (Arabic lead + English) with the live URLs, then posts to the Wady Cloud page via Graph API. `continueRegularOutput` on error so a Facebook failure never blocks the sheet update.",
-        "width": 460,
-        "height": 200,
-        "color": 1
-      }
-    },
-    {
-      "id": "Sticky 7",
+        "content": "## 11-12. Mark Used\nRuns **immediately after** a successful push — before Facebook. Sets column B = `used`, column C = today.\n\nMarking the sheet before the Facebook step keeps the window where a post exists on GitHub but is still `pending` as small as possible; that window is what lets the next run regenerate the same topic as a duplicate.",
+        "height": 240,
+        "width": 460
+      },
+      "id": "sticky-7",
       "name": "Sticky 7",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2620,
-        180
-      ],
+        2180,
+        140
+      ]
+    },
+    {
       "parameters": {
-        "content": "## 12-13. Mark Used & Report\nOnly runs after a successful push. Sets column B = `used`, column C = today, then returns the file + live URLs.",
-        "width": 460,
-        "height": 200,
-        "color": 5
-      }
+        "content": "## 13-15. Announce on Facebook & report\nBilingual post (Arabic lead + English) with the live URLs, posted to the Wady Cloud page via Graph API.\n\n`continueRegularOutput` on error, so a Facebook failure never fails the run — the blog is already published and the sheet is already updated.",
+        "height": 240,
+        "width": 680
+      },
+      "id": "sticky-fb",
+      "name": "Sticky FB",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2620,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Failure log (self-handling)\nThis branch is **not** part of the main flow — it has its own Error Trigger and only runs when a run of this workflow fails.\n\n### Setup (one time)\n**1.** Add a tab named `Run Errors` to the Wady topics spreadsheet with these headers in row 1:\n\n`Timestamp` | `Workflow` | `Failed Node` | `Error` | `Execution URL`\n\n**2.** Open **Log Failure to Sheet** and pick that tab from the dropdown (left empty on purpose — the tab has to exist first).\n\n**3.** **Workflow Settings → Error Workflow → Wady Cloud Blog Auto Deploy** (this same workflow — n8n allows a workflow to handle its own failures).\n\n### Why\nEvery node here is `stopWorkflow` on error and nothing was watching. Five runs died silently between 2 Jul and 20 Jul 2026 and the only symptom was a gap in the blog. `Failed Node` names the exact node that broke.",
+        "height": 400,
+        "width": 700
+      },
+      "id": "sticky-error",
+      "name": "Sticky Error",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        780
+      ]
     }
   ],
   "connections": {
-    "Schedule Every 2 Days at 18:00": {
+    "Schedule Daily at 18:00": {
       "main": [
         [
           {
@@ -534,6 +635,17 @@
       ]
     },
     "Read Wady Topics": {
+      "main": [
+        [
+          {
+            "node": "Skip Unless Due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Unless Due": {
       "main": [
         [
           {
@@ -636,28 +748,6 @@
       "main": [
         [
           {
-            "node": "Build Facebook Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Facebook Message": {
-      "main": [
-        [
-          {
-            "node": "Post Blog to Facebook Page",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Post Blog to Facebook Page": {
-      "main": [
-        [
-          {
             "node": "Prepare Sheet Update",
             "type": "main",
             "index": 0
@@ -680,7 +770,51 @@
       "main": [
         [
           {
+            "node": "Build Facebook Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Facebook Message": {
+      "main": [
+        [
+          {
+            "node": "Post Blog to Facebook Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Blog to Facebook Page": {
+      "main": [
+        [
+          {
             "node": "Output Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On This Workflow Failing": {
+      "main": [
+        [
+          {
+            "node": "Format Failure Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Failure Row": {
+      "main": [
+        [
+          {
+            "node": "Log Failure to Sheet",
             "type": "main",
             "index": 0
           }
