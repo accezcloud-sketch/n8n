@@ -2,3 +2,6 @@
 .env
 .claude/
 n8n-export.zip
+docker-compose.override.yml
+# macOS
+.DS_Store
