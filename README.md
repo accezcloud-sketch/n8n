@@ -2,7 +2,7 @@
 
 Self-hosted n8n on a VPS via Docker. Runs four blog auto-deploy workflows that generate posts with Gemini, fetch Unsplash images (where the site uses a cover), push to GitHub, and announce on Facebook:
 
-- **Accez Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/AccezWebsite`, posts to the Accez Facebook page (every 2 days at **09:00**)
+- **Accez Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/AccezWebsite`, posts to the Accez Facebook page (Sunday and Wednesday at **09:00** Riyadh time)
 - **CloudElite Blog Auto Deploy** — bilingual EN+AR posts to `accezcloud-sketch/CloudEliteSite`, posts to the CloudElite Facebook page (every 2 days at **12:00**)
 - **Veganster Blog Auto Deploy** — English posts to `accezcloud-sketch/veganster`, posts to the Veganster Facebook page (every 2 days at **15:00**)
 - **Wady Cloud Blog Auto Deploy** — bilingual EN+AR posts (single file, `<!-- AR -->` marker) to `accezcloud-sketch/cloudvalley` on the `master` branch (no images), then announces on the Wady Cloud Facebook page (every 2 days at **18:00**)

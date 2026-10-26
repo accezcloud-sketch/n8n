@@ -247,7 +247,7 @@ fs.writeFileSync(path.join(HERE, 'good-output.md'), pushed.fileContent);
 
 // =====================================================================
 section('IndexNow request');
-const KEY_FILE = '/Users/ali/Desktop/AccezWebsite-work/notes/indexnow-key.txt';
+const KEY_FILE = '/Users/ali/Desktop/AccezWebsite/public/02fc2248f8f1fe4d7046ca50e2e5622e.txt';
 const KEY = fs.existsSync(KEY_FILE) ? fs.readFileSync(KEY_FILE, 'utf8').trim() : '02fc2248f8f1fe4d7046ca50e2e5622e';
 const slug = 'sustainability-and-energy-efficiency-cutting-costs-while';
 ok(r.indexNow.method === 'POST' && r.indexNow.url === 'https://api.indexnow.org/indexnow', 'POST https://api.indexnow.org/indexnow');

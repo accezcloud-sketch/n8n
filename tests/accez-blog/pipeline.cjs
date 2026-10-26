@@ -6,7 +6,7 @@ const path = require('path');
 const { runCode, evalExpr, loadWorkflow } = require('./harness.cjs');
 
 // The website repo (only its parser is used, by test.mjs). Override with ACCEZ_SITE.
-const REPO = process.env.ACCEZ_SITE || '/Users/ali/Desktop/AccezWebsite-work/site-final';
+const REPO = process.env.ACCEZ_SITE || '/Users/ali/Desktop/AccezWebsite';
 // What "List Existing Blog Posts" returns: the posts on the site (fixture copy).
 const FIXTURE_SLUGS = fs.readFileSync(path.join(__dirname, 'fixtures/existing-slugs.txt'), 'utf8').trim().split('\n');
 // The sample post (fixtures/sample-post.md) is the one being written, so by default
