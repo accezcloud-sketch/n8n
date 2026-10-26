@@ -1,0 +1,37 @@
+=Write the Arabic version of the English blog post below for the Accez website. Write it as natural Modern Standard Arabic for readers in Saudi Arabia ({{ $('Collect Existing Posts').first().json.readers }}), the way a Saudi consultant would write it for Saudi professionals. It is NOT a literal translation: keep every fact, section and link of the English article, but phrase each sentence the way it is naturally said in Arabic.
+
+=== ENGLISH ARTICLE ===
+{{ $json.englishDraft }}
+=== END OF ENGLISH ARTICLE ===
+
+=== FRONTMATTER ===
+Start the output with this exact frontmatter (replace the bracketed parts). Every value is wrapped in double quotes; inside a value write a double quote as \" .
+
+---
+titleAr: "[Arabic title in natural Modern Standard Arabic; keep a colon if the English title has one]"
+metaTitleAr: "[Arabic search result title, AT MOST 60 characters including spaces]"
+metaDescriptionAr: "[Arabic search result description, BETWEEN 140 AND 155 characters including spaces, ends with a reason to click]"
+excerptAr: "[Arabic excerpt, one or two sentences]"
+tagsAr: ["وسم1", "وسم2", "وسم3", "وسم4", "وسم5"]
+---
+
+Do not add any other frontmatter keys and do not repeat the English frontmatter.
+
+=== BODY ===
+After the closing --- write the complete Arabic article with the same structure as the English one, in the same order:
+- No title heading (#) at the top. The summary blockquote ("> " lines) comes first, then the opening paragraph, then the same ## and ### sections, the Accez section, the FAQ, the takeaways, the disclaimer line if the English has one, and the closing line last.
+- Use these EXACT Arabic headings, character for character: the FAQ heading is "## الأسئلة الشائعة" and the takeaways heading is "## أبرز النقاط". Never use "الوجبات الرئيسية" (it means "main meals"), "أسئلة متكررة", "النقاط الرئيسية" or "الخلاصة" for them.
+- Every other heading must be natural Arabic that says what the section covers, not a word for word translation. Never use generic template headings such as "ما يفعله أصحاب الأداء العالي بشكل مختلف", "ما الذي يتعطل ولماذا", "الغوص العميق" or "التنقل في مشهد العقارات السعودي".
+- Keep the same number of FAQ questions (### headings) and the same number of takeaway bullets.
+- Links: keep every link of the English article. For links to this website, put /ar in front of the path and keep the trailing slash, for example /ar{{ $('Collect Existing Posts').first().json.solutionPath }} and /ar/blog/<slug>/. Keep external links (government and official sites) exactly as they are. Never add links that are not in the English article and never link to portal.accez.cloud.
+- The closing line is the very last line: one Arabic sentence that ends with a markdown link to {{ $('Collect Existing Posts').first().json.solutionPathAr }} whose anchor text is "{{ $('Collect Existing Posts').first().json.solutionNameAr }}".
+- Anchor text of every link must describe the destination (never "هنا", "اضغط هنا" or "اقرأ المزيد").
+- Keep brand and product names in Latin letters: Accez, Airbnb, Booking.com, Expedia, Stripe, Tap, Google Analytics, Meta Pixel, Twilio. Organisation names may be written in Arabic (for example منصة إيجار، الهيئة العامة للإحصاء، رؤية السعودية 2030).
+- Use Arabic punctuation (، ؛ ؟). Never use an em dash (—), an en dash (–) or a hyphen with spaces around it ( - ) as punctuation.
+
+=== FACT RULES (strict) ===
+- Add no facts, numbers, statistics, sources or Accez features that are not in the English article.
+- Never say or imply that Accez offers WhatsApp integration, mada, Apple Pay or STC Pay payments, e-signing, a tenant or resident portal or app, a booking engine or website builder, dynamic or automatic pricing, a vendor directory, a visitor or access module, smart locks, inspection checklists, minimum stay rules, automatic reminders, Ejar integration or AI features, and say nothing about whether Accez complies with ZATCA or e-invoicing rules.
+
+=== OUTPUT RULES ===
+Output raw markdown only, starting with the frontmatter. No English article, no commentary, no code fences, no explanation before or after.

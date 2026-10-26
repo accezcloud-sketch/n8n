@@ -1,0 +1,331 @@
+
+# Graph, ids, credentials
+PASS node names are unique
+PASS node ids are unique
+PASS every connection references existing nodes 
+PASS kept node "Read Topics from Google Sheets" with id read-sheets
+PASS credentials block unchanged on "Read Topics from Google Sheets"
+PASS kept node "Find First Pending Topic" with id find-pending
+PASS kept node "Generate English Post with Gemini" with id llm-chain
+PASS kept node "Google Gemini Chat Model" with id gemini-model
+PASS credentials block unchanged on "Google Gemini Chat Model"
+PASS kept node "Combine English and Arabic" with id strip-encode
+PASS kept node "Search Unsplash" with id search-unsplash
+PASS credentials block unchanged on "Search Unsplash"
+PASS kept node "Process Unsplash Result" with id process-unsplash
+PASS kept node "If Has Image" with id if-has-image
+PASS kept node "Download Unsplash Image" with id download-image
+PASS kept node "Push Image to GitHub" with id push-image
+PASS credentials block unchanged on "Push Image to GitHub"
+PASS kept node "Push Blog Post to GitHub" with id github-push
+PASS credentials block unchanged on "Push Blog Post to GitHub"
+PASS kept node "Prepare Sheet Update" with id prepare-update
+PASS kept node "Mark Topic as Used in Sheet" with id update-sheet
+PASS credentials block unchanged on "Mark Topic as Used in Sheet"
+PASS kept node "Output Success" with id success-output
+PASS kept node "GitHub Push Failed" with id error-output
+PASS kept node "Sticky Note" with id sticky-trigger
+PASS kept node "Sticky Note1" with id sticky-sheets-read
+PASS kept node "Sticky Note2" with id sticky-ai
+PASS kept node "Sticky Note3" with id sticky-clean
+PASS kept node "Sticky Note4" with id sticky-unsplash
+PASS kept node "Sticky Note5" with id sticky-image-push
+PASS kept node "Sticky Note6" with id sticky-article-push
+PASS kept node "Sticky Note7" with id sticky-update
+PASS kept node "Sticky Note8" with id sticky-output
+PASS duplicate 48h trigger removed
+PASS kept node "Has Unsplash Results?" with id 894abe8d-8e79-444c-9c99-b990f1c22477
+PASS kept node "Search Unsplash Fallback" with id 21021cef-f865-4a62-8f07-6b7803dd1ef5
+PASS credentials block unchanged on "Search Unsplash Fallback"
+PASS kept node "Post Blog to Facebook Page" with id 6d09292e-24fb-4bdb-9539-a7929b0174b8
+PASS credentials block unchanged on "Post Blog to Facebook Page"
+PASS kept node "Build Facebook Message" with id b8bbbf95-b7d7-4803-94ba-e9eab756a5dd
+PASS kept node "Schedule Sun and Wed at 09:00" with id schedule-trigger
+PASS no new credentials: every credential (type, id, name) is one the original already used
+PASS every $('Node') reference exists and runs earlier 
+PASS no disconnected nodes 
+PASS code compiles: Find First Pending Topic
+PASS code compiles: Combine English and Arabic
+PASS code compiles: Process Unsplash Result
+PASS code compiles: Prepare Sheet Update
+PASS code compiles: Collect Existing Posts
+PASS code compiles: Prepare Duplicate Sheet Update
+PASS code compiles: Check English Draft
+PASS code compiles: Quality Gate
+PASS code compiles: Use Default Cover
+PASS code compiles: Prepare Review Sheet Update
+PASS retry 3x on Generate English Post with Gemini
+PASS retry 3x on Generate Arabic Post with Gemini
+PASS retry 3x on Push Blog Post to GitHub
+PASS retry 3x on Push Image to GitHub
+PASS retry 3x on Download Unsplash Image
+PASS retry 3x on Search Unsplash
+PASS retry 3x on Search Unsplash Fallback
+PASS retry 3x on Post Blog to Facebook Page
+PASS retry 3x on Read Topics from Google Sheets
+PASS retry 3x on Mark Topic as Used in Sheet
+PASS retry 3x on Mark Topic as Needs Review in Sheet
+PASS retry 3x on Mark Topic as Duplicate in Sheet
+PASS retry 3x on List Existing Blog Posts
+
+# Nothing to set up: no failure-log tab, no error workflow, no new sheet columns
+PASS no Error Trigger node (it only runs once someone sets the error workflow)
+PASS no "Run Errors" sheet tab is used
+PASS workflow settings name no error workflow
+PASS Google Sheets nodes only read or update (no append to another tab)
+PASS every Sheets node uses the same spreadsheet and the Topics tab
+PASS no sticky note asks the owner to set anything up
+
+# Node parameters match the n8n node definitions (n8n-nodes-base 2.44.5, @n8n/n8n-nodes-langchain 2.44.5)
+PASS parameters of "Read Topics from Google Sheets" (googleSheets v4.7) are valid
+PASS parameters of "Find First Pending Topic" (code v2) are valid
+PASS parameters of "Generate English Post with Gemini" (chainLlm v1.9) are valid
+PASS parameters of "Google Gemini Chat Model" (lmChatGoogleGemini v1) are valid
+PASS parameters of "Combine English and Arabic" (code v2) are valid
+PASS parameters of "Search Unsplash" (httpRequest v4.2) are valid
+PASS parameters of "Process Unsplash Result" (code v2) are valid
+PASS parameters of "If Has Image" (if v2.2) are valid
+PASS parameters of "Download Unsplash Image" (httpRequest v4.2) are valid
+PASS parameters of "Push Image to GitHub" (github v1.1) are valid
+PASS parameters of "Push Blog Post to GitHub" (github v1.1) are valid
+PASS parameters of "Prepare Sheet Update" (code v2) are valid
+PASS parameters of "Mark Topic as Used in Sheet" (googleSheets v4.7) are valid
+PASS parameters of "Output Success" (set v3.4) are valid
+PASS parameters of "GitHub Push Failed" (set v3.4) are valid
+PASS parameters of "Sticky Note" (stickyNote v1) are valid
+PASS parameters of "Sticky Note1" (stickyNote v1) are valid
+PASS parameters of "Sticky Note2" (stickyNote v1) are valid
+PASS parameters of "Sticky Note3" (stickyNote v1) are valid
+PASS parameters of "Sticky Note4" (stickyNote v1) are valid
+PASS parameters of "Sticky Note5" (stickyNote v1) are valid
+PASS parameters of "Sticky Note6" (stickyNote v1) are valid
+PASS parameters of "Sticky Note7" (stickyNote v1) are valid
+PASS parameters of "Sticky Note8" (stickyNote v1) are valid
+PASS parameters of "Has Unsplash Results?" (if v2.2) are valid
+PASS parameters of "Search Unsplash Fallback" (httpRequest v4.2) are valid
+PASS parameters of "Post Blog to Facebook Page" (httpRequest v4.2) are valid
+PASS parameters of "Build Facebook Message" (set v3.4) are valid
+PASS parameters of "Schedule Sun and Wed at 09:00" (scheduleTrigger v1.3) are valid
+PASS parameters of "List Existing Blog Posts" (github v1.1) are valid
+PASS parameters of "Collect Existing Posts" (code v2) are valid
+PASS parameters of "If Duplicate Topic" (if v2.2) are valid
+PASS parameters of "Prepare Duplicate Sheet Update" (code v2) are valid
+PASS parameters of "Mark Topic as Duplicate in Sheet" (googleSheets v4.7) are valid
+PASS parameters of "Output Duplicate" (set v3.4) are valid
+PASS parameters of "Check English Draft" (code v2) are valid
+PASS parameters of "Generate Arabic Post with Gemini" (chainLlm v1.9) are valid
+PASS parameters of "Google Gemini Chat Model (Arabic)" (lmChatGoogleGemini v1) are valid
+PASS parameters of "Quality Gate" (code v2) are valid
+PASS parameters of "If Quality Passed" (if v2.2) are valid
+PASS parameters of "Use Default Cover" (code v2) are valid
+PASS parameters of "Fail Run on GitHub Error" (stopAndError v1) are valid
+PASS parameters of "Prepare Review Sheet Update" (code v2) are valid
+PASS parameters of "Mark Topic as Needs Review in Sheet" (googleSheets v4.7) are valid
+PASS parameters of "Output Needs Review" (set v3.4) are valid
+PASS parameters of "Wait for Site Deploy" (wait v1.1) are valid
+PASS parameters of "Notify IndexNow" (httpRequest v4.2) are valid
+PASS parameters of "Sticky Note9" (stickyNote v1) are valid
+PASS parameters of "Sticky Note10" (stickyNote v1) are valid
+PASS parameters of "Sticky Note11" (stickyNote v1) are valid
+PASS GitHub file:list = resource "file", operation "list", folder in "filePath" (the "Path" field; no returnAll for file:list)
+PASS GitHub listing is optional (continue on fail, always outputs)
+PASS Push Blog Post to GitHub: file create (default operation) with content and commit message
+PASS Push Image to GitHub: file create (default operation) with content and commit message
+PASS Mark Topic as Used in Sheet: update row, auto-map, match on the topic column, extra fields ignored
+PASS Mark Topic as Duplicate in Sheet: update row, auto-map, match on the topic column, extra fields ignored
+PASS Mark Topic as Needs Review in Sheet: update row, auto-map, match on the topic column, extra fields ignored
+PASS IndexNow: POST JSON body to https://api.indexnow.org/indexnow, no credential needed
+PASS IndexNow failure never stops the run (continue on fail)
+PASS Wait for Site Deploy: 5 minutes (time interval)
+PASS Stop and Error has an error message
+
+# Model: same Gemini model as the Wady workflow, both calls
+PASS both Gemini model nodes use the Wady model models/gemini-2.5-flash-lite
+PASS both Gemini model nodes use the existing Gemini credential
+PASS no output cap on either model (options {} = model default; the node only applies its 1024-token default when "options" is missing)
+PASS each chain has its own model sub-node
+
+# Schedule: Sunday and Wednesday 09:00 Asia/Riyadh, one trigger
+PASS exactly one schedule trigger
+PASS one weekly rule, every week (no every-N-days recurrence check)
+PASS weekdays Sunday (0) and Wednesday (3)
+PASS at 09:00 (minute set explicitly, otherwise n8n picks a random minute)
+PASS workflow timezone Asia/Riyadh
+PASS cron 0 0 9 * * 0,3 fires Sunday and Wednesday 09:00
+PASS runs on 2026-11-01, 2026-11-04, 2026-11-08, 2026-11-11 (2 posts a week)
+
+# Two Gemini calls with mocked outputs
+PASS English call first, then the Arabic call
+PASS English prompt: topic + related posts that exist, no 400+/77%
+PASS both prompts have no unresolved expressions
+PASS English prompt asks for the closing line to /solutions/property-managers/, not the portal
+PASS English prompt forbids the template headings
+PASS English prompt carries a per-topic format (comparisons of approaches, not competitors)
+PASS English prompt carries the OWNER_DECISIONS never-claim list
+PASS English prompt no longer lists "reminders" as a feature (owner: never claim automatic reminders)
+PASS Check English Draft strips the code fence and chatter
+PASS Arabic prompt contains the full English article
+PASS Arabic prompt: natural MSA for Saudi readers, exact Arabic headings
+PASS Arabic prompt asks for the closing line to /ar/solutions/property-managers/
+PASS combined frontmatter has the English fields (call 1) and Arabic fields (call 2)
+PASS combined body: English, one <!-- AR --> marker, Arabic
+PASS Arabic links to site pages get the /ar prefix
+PASS empty English answer stops the run (red execution, topic stays pending): No content received from Gemini (English article). Check the
+PASS empty Arabic answer stops the run (red execution, topic stays pending): No content received from Gemini (Arabic article). Check the 
+PASS Arabic answer with "title:" instead of "titleAr:" still fills the Arabic fields, English title kept
+PASS Arabic answer that repeats the English article before <!-- AR --> is cleaned
+PASS Arabic text the English call added after a marker is ignored
+PASS Arabic answer in a code fence is unwrapped
+
+# Good sample end to end, read by the site's own parser
+PASS good sample passes the gate: all checks passed
+PASS pushed path content/blog/sustainability-and-energy-efficiency-cutting-costs-while.md
+PASS image path matches slug public/images/blog/sustainability-and-energy-efficiency-cutting-costs-while.jpg
+PASS site parser (gray-matter + createBlogRepository) reads the file
+PASS title keeps its colon: Sustainability and Energy Efficiency: Cutting Costs While Going Green
+PASS coverImage = pushed image path
+PASS alt text describes the Unsplash photo
+PASS credit with quotes survives YAML
+PASS date/author (Accez Team)/category set by workflow
+PASS tags parsed as lists
+PASS meta lengths 50/147
+PASS body splits into EN and AR
+PASS Arabic headings verbatim
+PASS solution page links render (EN + /ar)
+PASS related article links render (EN + /ar)
+PASS no escaped HTML / fences / YAML / portal link in the published file
+PASS each language ends with its closing line to the solution page
+PASS optimize-blog-images.mjs regex still finds coverImage
+PASS Facebook message: title + correct URL
+PASS sheet row marked used with the date
+PASS Output Success reports Facebook and IndexNow
+PASS order after the push: sheet "used", wait for the deploy, IndexNow, Facebook
+
+# IndexNow request
+PASS POST https://api.indexnow.org/indexnow
+PASS body: host, key from notes/indexnow-key.txt, keyLocation, EN + AR URLs with trailing slash
+PASS jsonBody expression returns a JSON string (parsed by the HTTP node)
+PASS IndexNow failure: reported, run still succeeds, Facebook still posted
+
+# Image, GitHub and Facebook failures
+PASS downloadError: default cover, no credit, readable error "timeout"
+PASS pushError: default cover, no credit, readable error "sha missing"
+PASS no Unsplash result (fallback errored): default cover, still published
+PASS Unsplash search error -> fallback search used (no IF type error)
+PASS Facebook failure reported, sheet already marked used
+PASS GitHub push failure ends in Stop and Error with the plain message, sheet untouched: GitHub push failed for "Sustainability and Energy Efficiency: Cutting Costs While Going Green": file already exists
+PASS GitHub listing failed: duplicate check skipped, no articles offered, gate rejects any /blog/ link
+PASS unescaped quotes/colon/backslash in titles survive: The "Green" Lease: Cutting Costs \ Going Green
+
+# Quality Gate blocks bad output (nothing pushed, row marked "needs review")
+PASS blocked: 400+ channels -> mentions "400+" channels (Accez connects Airbnb, Booking.com and Expedia only)
+PASS blocked: 77% statistic -> contains the planted "77%" statistic; states a percentage without linking the source: "Property managers o
+PASS blocked: unlinked study -> cites a study or research without linking the source: "Property managers often grapple with the paradox of
+PASS blocked: unlinked percentage -> states a percentage without linking the source: "Property managers often grapple with the paradox of incre
+PASS blocked: em dash -> uses an em dash or en dash
+PASS blocked: spaced hyphen in title -> uses a spaced hyphen " - " as punctuation
+PASS blocked: metaTitle too long -> metaTitle is 72 characters (max 60)
+PASS blocked: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic part does not end with a closing line linking /
+PASS blocked: Arabic cut off (no closing line) -> Arabic part does not end with a closing line linking /ar/solutions/property-managers/ (wrong solution page
+PASS blocked: English cut off (no closing line) -> English part does not end with a closing line linking /solutions/property-managers/ (wrong solution page, 
+PASS blocked: code fence in body -> body contains a code fence
+PASS blocked: YAML in body -> body contains frontmatter (YAML) lines
+PASS blocked: wrong Arabic heading -> Arabic takeaways heading is not exactly "## أبرز النقاط"
+PASS blocked: link to missing article -> links to an article that does not exist: /blog/how-to-cut-energy-bills-in-riyadh/
+PASS blocked: Accez claims WhatsApp -> the Accez section claims a feature Accez does not offer ("WhatsApp"); claims or discusses an unconfirmed A
+PASS blocked: tenants book providers via Accez -> says tenants or guests book service providers through Accez
+PASS blocked: figure about Accez -> states a percentage without linking the source: "Property managers often grapple with the paradox of incre
+PASS blocked: raw HTML -> body contains raw HTML tags
+PASS blocked: vague link text -> link text is not descriptive: "here"
+PASS blocked: template heading "What High Performers Do Differently" -> uses a template heading instead of one that describes the section: "What High Performers Do Differently"
+PASS blocked: template heading "What Breaks and Why" -> uses a template heading instead of one that describes the section: "The Hidden Costs: What Breaks and Why"
+PASS blocked: template heading "A Deep Dive into ..." -> uses a template heading instead of one that describes the section: "A Deep Dive into Energy Waste"
+PASS blocked: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> uses a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل مختل
+PASS blocked: Arabic template heading "ما الذي يتعطل ولماذا" -> uses a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
+PASS blocked: generic heading "Conclusion" -> uses a generic heading: "Conclusion"
+PASS blocked: ends with "Visit portal.accez.cloud" instead of the solution link -> English part does not end with a closing line linking /solutions/property-managers/ (wrong solution page, 
+PASS blocked: closing line links the wrong solution page -> English part does not end with a closing line linking /solutions/property-managers/ (wrong solution page, 
+PASS blocked: Arabic closing line links the wrong solution page -> Arabic part does not end with a closing line linking /ar/solutions/property-managers/ (wrong solution page
+PASS blocked: portal.accez.cloud link inside the body -> links to or mentions portal.accez.cloud (posts end with the solution page link instead)
+PASS blocked: Accez claims mada, Apple Pay and STC Pay -> the Accez section claims a feature Accez does not offer ("mada"); claims or discusses an unconfirmed Accez
+PASS blocked: Accez and ZATCA compliance -> claims or discusses an unconfirmed Accez feature ("ZATCA"): "Accez is fully compliant with ZATCA e-invoici
+PASS blocked: Accez and ZATCA non-compliance -> claims or discusses an unconfirmed Accez feature ("ZATCA"): "Note that Accez is not yet certified for ZATC
+PASS blocked: Accez claims e-signing -> claims or discusses an unconfirmed Accez feature ("e-sign"): "Accez lets owners e-sign leases in minutes."
+PASS blocked: Accez claims a tenant portal -> the Accez section claims a feature Accez does not offer ("Tenant portal"); claims or discusses an unconfir
+PASS blocked: Accez claims dynamic pricing -> claims or discusses an unconfirmed Accez feature ("dynamic pricing"): "Accez also offers dynamic pricing t
+PASS blocked: Accez claims automatic reminders -> claims or discusses an unconfirmed Accez feature ("automatic rent reminders"): "Accez sends automatic rent
+PASS blocked: Accez claims minimum stay rules -> the Accez section claims a feature Accez does not offer ("minimum stay"); claims or discusses an unconfirm
+PASS blocked: Accez claims inspection checklists -> claims or discusses an unconfirmed Accez feature ("inspection checklists"): "Accez inspection checklists m
+PASS blocked: Accez claims visitor management -> claims or discusses an unconfirmed Accez feature ("visitor management"): "Accez includes visitor managemen
+PASS blocked: Accez claims Ejar integration -> claims or discusses an unconfirmed Accez feature ("Ejar"): "Accez registers every lease with Ejar for you.
+PASS blocked: Accez claims a booking engine -> claims or discusses an unconfirmed Accez feature ("direct booking website"): "Accez gives you a direct boo
+PASS blocked: Accez claims a vendor directory -> claims or discusses an unconfirmed Accez feature ("vendor directory"): "Accez has a vendor directory of ap
+PASS blocked: Accez claims smart locks -> claims or discusses an unconfirmed Accez feature ("smart locks"): "Accez connects to smart locks for keyle
+PASS blocked: Accez claims AI features -> claims or discusses an unconfirmed Accez feature ("AI"): "Accez uses AI to predict which units need repair
+PASS blocked: Arabic: Accez claims WhatsApp -> claims or discusses an unconfirmed Accez feature ("واتساب"): "ويتكامل Accez مع واتساب لمراسلة النزلاء."
+PASS blocked: Arabic: Accez claims e-signing -> claims or discusses an unconfirmed Accez feature ("التوقيع الإلكتروني"): "ويتيح أكسيز التوقيع الإلكتروني ل
+PASS blocked: Arabic: Accez claims mada -> claims or discusses an unconfirmed Accez feature ("عبر مدى"): "ويقبل Accez الدفع عبر مدى وأبل باي."
+PASS allowed: ZATCA discussed in general 
+PASS allowed: mada and WhatsApp discussed in general 
+PASS allowed: Arabic: Ejar discussed in general 
+
+# Closing line follows the topic (property vs service business)
+PASS service business topic: prompts ask for /solutions/service-providers/ (and /ar/...)
+PASS service business post ending with /solutions/service-providers/ passes 
+PASS service business post ending with the property page is blocked
+PASS property post ending with the service provider page is blocked (EN and AR)
+PASS solution page for "Running a Salon Waitlist Without Losing Walk-Ins" = service-providers
+PASS solution page for "Loyalty Points and Gift Cards for Spas" = service-providers
+PASS solution page for "Coaching Businesses: Taking Deposits for Appointments" = service-providers
+PASS solution page for "Guest Messaging Templates for Serviced Apartments" = property-managers
+PASS solution page for "Lease Renewals for Long-Term Tenants" = property-managers
+PASS solution page for "Spa Amenities in Hotels: What Guests Expect" = property-managers
+
+# Duplicate check before writing
+PASS same slug as an existing post: no Gemini call, nothing pushed
+PASS row marked "duplicate: <existing slug>" in the status column, Output Duplicate ends the run cleanly
+PASS the sample topic is a duplicate once its post is on the site (slug cut at 60 vs full slug): 6 shared words (overlap 100%)
+PASS near duplicate: "Cash Flow Forecasting for Property Managers" -> cash-flow-forecasting-for-property-management-businesses (4 shared words (overlap 75%))
+PASS near duplicate: "Email Marketing to Past Guests" -> email-marketing-to-past-guests-turning-one-time-stays-into-repeat-bookings (4 shared words (overlap 40%))
+PASS near duplicate: "Utility Billing Across a Rental Portfolio" -> utility-and-bill-management-across-a-rental-portfolio (5 shared words (overlap 100%))
+PASS near duplicate: "Owner Reporting: Statements That Send Themselves" -> automated-owner-reporting-statements-that-send-themselves (6 shared words (overlap 86%))
+PASS near duplicate: "Dynamic Pricing 101: Stop Leaving Money on the Table" -> dynamic-pricing-101-how-to-stop-leaving-money-on-the-table-every-night (7 shared words (overlap 78%))
+PASS near duplicate: "How to Create and Manage Properties in Accez.Cloud" -> how-to-create-manage-properties-accez-cloud (6 shared words (overlap 100%))
+PASS near duplicate: "Sustainability and Energy Efficiency: Cutting Costs While Going Green" -> sustainability-and-energy-efficiency-cutting-costs-while-goi (6 shared words (overlap 86%))
+PASS not a duplicate: "Preventive Maintenance Budgets for Compounds"
+PASS not a duplicate: "Choosing Between In-House and Outsourced Cleaning"
+PASS not a duplicate: "Reducing No-Shows at Barbershops and Salons"
+PASS not a duplicate: "Guest Communication Templates for Check-In Day"
+PASS not a duplicate: "Rent Collection Reminders That Work"
+PASS not a duplicate: "How to Create and Manage Leases in Accez.Cloud"
+PASS not a duplicate: "Service Charges in Residential Compounds Explained"
+PASS no false duplicates: each of the 113 live post titles vs the other posts 
+
+# Article format per topic
+PASS comparison topic -> comparison format
+PASS numbered "mistakes" topic -> checklist
+PASS "How to" topic -> how-to
+PASS glossary topic -> glossary
+PASS "What is" topic -> explainer
+PASS optional "Format" column in the sheet wins
+PASS a Format column (any position) does not shift the topic, status and date columns
+PASS topics with no signal get varied formats (explainer, how-to, comparison, checklist), not one template
+
+# Sheet status values: plain text in the existing status column
+PASS "used" written as text to Status (no new columns): used
+PASS "needs review" written as text to Status (no new columns): needs review: uses an em dash or en dash
+PASS "duplicate" written as text to Status (no new columns): duplicate: preventive-maintenance-how-to-stop-smal
+
+# Slug cutter
+PASS slug sustainability-and-energy-efficiency-cutting-costs-while (56)
+PASS slug property-insurance-and-liability-covering-the-risks-owners (58)
+PASS slug cash-flow-forecasting-for-property-management-businesses (56)
+PASS slug connecting-your-tools-why-api-integrations-matter-for (53)
+PASS slug cybersecurity-for-property-managers-protecting-tenant-and (57)
+PASS slug migrating-from-spreadsheets-and-legacy-software-without (55)
+PASS slug visitor-and-access-management-for-compounds-and-gated (53)
+PASS slug an-owners-guide-to-cafe-style-amenities (39)
+PASS slug supercalifragilisticexpialidociousandevenlongerwordthatkeeps (60)
+PASS no pending topic -> error (run stops instead of calling Gemini with nothing)
+
+299 checks, ALL PASSED

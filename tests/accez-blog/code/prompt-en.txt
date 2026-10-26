@@ -1,0 +1,101 @@
+=Write an English blog post for the Accez website about this topic: {{ $json.topic }}
+The readers are {{ $json.readers }}. A separate step writes the Arabic version from your article later, so write English only.
+
+=== ABOUT ACCEZ (the only facts you may state about Accez) ===
+Accez is one platform with two independent solutions. They do not feed each other: service providers have their own customers, and property managers do not book service providers through Accez. The portal works in Arabic and English, in the browser on desktop or phone (it is designed mainly for desktop use).
+
+1. Property management solution (page /solutions/property-managers/), for property managers, owners, hotels and serviced apartments, and developers selling units:
+- Properties overview: revenue, residents, units and work orders per property
+- Availability calendar: channel sync, bulk price updates, import and export
+- Booking channels: Airbnb, Booking.com and Expedia (these three only)
+- Reservations: each stay with its timeline, payment and accepted policies; add ons sold with stays (meals, cleaning, transport)
+- Sales and projects: sale units with status, price and buyer, a sales path to a signed contract, an all records sheet, a units map, and projects that group units
+- Billing and payments: revenue, invoices and refunds; online payments through Stripe and Tap
+- Integrations: Stripe, Tap, Google Analytics, Meta Pixel and SMS (through Twilio)
+- Communication: email templates (confirmations, check ins, cancellations), SMS messaging, and one inbox for conversations
+- Leases (long term contracts) and rent payments (paid vs due)
+- Owners and payouts: statements and payouts per owner
+- Staff and roles (access control), and work orders (maintenance from request to done)
+
+2. Service provider solution (page /solutions/service-providers/), for barbers, salons, spas, coaches and any appointment business:
+- A marketplace listing where customers find and book them
+- Bookings (accept, start, complete, no show), a calendar, and customer records (visits, spend, last visit)
+- Team and the services each person gives, business hours with several shifts a day, and policies (timezone and upfront deposit)
+- Promo codes, loyalty points, waitlist, gift cards, deals, reviews, services with duration and price, and SMS messaging
+- Integrations: Tap, Stripe, analytics and SMS
+
+ACCEZ CLAIM RULES (strict):
+- Describe only the features listed above. Never invent or stretch a capability.
+- Booking channels are Airbnb, Booking.com and Expedia only. Never write "400+ channels" or any channel count, and never name any other channel (for example Vrbo) as connected to Accez.
+- Payments go through Stripe and Tap only. Never say Accez supports mada, Apple Pay, STC Pay or SADAD.
+- NOT confirmed, so never say or imply Accez provides any of these: WhatsApp integration; e-signing or digital signatures; a tenant, resident or guest portal or app; a direct booking engine or website builder; dynamic or automatic pricing; a vendor directory; a visitor or gate access module; smart locks or keyless entry; inspection checklists; minimum stay rules; automatic reminders; Ejar integration or Ejar registration; utility metering or metered billing; AI features; tenant screening or credit checks; a native mobile app; GDPR certification; on premise deployment. You may discuss these topics in general, but never as something Accez does.
+- ZATCA, Fatoora and e-invoicing: you may explain the regulation itself, but say NOTHING about whether Accez complies or not (no claim and no disclaimer).
+- Never state any figure, customer count, customer name, testimonial or result about Accez (no "Accez users save X%", no "trusted by N operators").
+- Never say tenants, residents or guests book service providers through Accez.
+
+=== STATISTICS AND SOURCES (strict) ===
+- Do not write any statistic, percentage, market figure, or "a study", "a survey" or "research shows" claim, UNLESS all three are true: it is a widely published official figure (for example from a government body, regulator or national statistics authority), you name that organisation in the sentence, and the same paragraph links the original source page as a markdown link. If you cannot do all three, make the point without numbers.
+- Never invent a source, organisation, report, study, quote or URL.
+- Do not repeat statistics in the summary block, the FAQ answers or the Key Takeaways.
+- Ordinary numbers that are not statistics are fine (for example "48 hours before check in", "a 12 month lease", "Vision 2030").
+
+=== FRONTMATTER ===
+Start the output with this exact frontmatter (replace the bracketed parts). Every value is wrapped in double quotes; inside a value write a double quote as \" . Colons inside quoted values are fine.
+
+---
+title: "[English title. Base it on the topic wording. If the topic contains a colon, keep the colon in the same place]"
+metaTitle: "[English search result title, AT MOST 60 characters including spaces, includes the primary keyword]"
+metaDescription: "[English search result description, BETWEEN 140 AND 155 characters including spaces, includes the primary keyword, ends with a reason to click]"
+primaryKeyword: "[the single search query this post targets, in English, lowercase]"
+excerpt: "[English excerpt, one or two sentences, under 200 characters]"
+tags: ["tag1", "tag2", "tag3", "tag4", "tag5"]
+---
+
+Do not add any other frontmatter keys (the Arabic fields, date, author, category and cover image are added automatically).
+
+=== ARTICLE FORMAT ===
+Posts on this site must not all follow one template. {{ $json.formatInstruction }}
+
+=== STRUCTURE ===
+After the closing --- of the frontmatter, write the article body in this order. Do NOT add a title heading (#) at the top.
+
+1. SUMMARY BLOCK: the very first thing after the frontmatter. A single blockquote, every line beginning with "> ". 60 to 90 words. It must answer the article's core question completely on its own, so that someone who reads only this block still gets a correct and useful answer. Include at least two concrete specifics (a regulation or programme name, a timeframe, or a concrete process step), but no statistics or percentages. Do not mention Accez in this block. Do not write the word "Summary" as a label, just the blockquote.
+
+2. OPENING (no heading): 2 to 4 sentences presenting the real problem this topic solves for the reader. Never start with generic phrases like "In the world of real estate..." or "In today's market...".
+
+3. THE MAIN BODY in the article format above, 3 to 5 ## sections. Write about operations in Saudi Arabia where it is relevant (for example Vision 2030, the Ejar rental platform, Balady or municipality licensing, seasonal demand around Hajj, Umrah and school holidays, GASTAT data) either as one section or woven into the others. Include at most one markdown link to an authoritative external source (an official government, regulator or statistics body, for example ejar.sa, gastat.gov.sa, vision2030.gov.sa, momrah.gov.sa), only to a page you are confident exists; if unsure, link to the organisation's homepage. Where it helps the reader, add one or two related article links from the INTERNAL LINKS list below.
+
+4. ONE SHORT ACCEZ SECTION: a ## heading that names Accez and says what it does for this topic (for example "## Tracking Rent and Deposits in Accez"), then 3 to 5 bullets of Accez features drawn ONLY from "ABOUT ACCEZ" above and from the {{ $json.solutionName }}. Each bullet must solve a problem raised earlier in the article. This is the first time Accez is named in the article.
+
+5. ## Frequently Asked Questions with EXACTLY 4 questions. Each question is a ### heading phrased exactly as a reader would type it into Google. Each answer is 40 to 70 words of plain prose, answering directly in the first sentence before adding any detail. No bullets inside answers.
+
+6. ## Key Takeaways with 5 to 7 bullet points summarizing the article's main points.
+
+7. If the article touches rent, deposits, service charges, contracts, taxes, or regulatory compliance, add one italic line here: *This article is general information for property operators and is not legal, tax, or financial advice. Confirm specifics with a qualified professional.* If the topic does not touch those areas, skip this line entirely.
+
+8. CLOSING LINE (the very last line of the article): one sentence that ends with a markdown link to {{ $json.solutionPath }} whose anchor text names the {{ $json.solutionName }}, for example: See how the [{{ $json.solutionName }}]({{ $json.solutionPath }}) keeps this in one place. Never link to portal.accez.cloud and never write "Visit portal.accez.cloud".
+
+=== HEADINGS ===
+- Every ## and ### heading must tell the reader what that section covers for THIS topic, so that someone scanning only the headings learns the article.
+- Never use generic or template headings, for example "What High Performers Do Differently", "What the Best Operators Do Differently", "What Breaks and Why", "A Deep Dive into ...", "Navigating the Saudi ... Landscape", "Introduction", "Overview", "Conclusion", "Final Thoughts". Never copy wording from these instructions into a heading.
+- The only fixed headings are "## Frequently Asked Questions" and "## Key Takeaways".
+
+=== INTERNAL LINKS ===
+Use 2 or 3 internal links in total, as markdown links whose anchor text describes the destination (never "click here", "here", "read more", "learn more" or "this article"):
+- The closing line link to {{ $json.solutionPath }} (required, exactly once).
+- One or two links to related existing articles, chosen ONLY from this list and only where they genuinely fit the sentence:
+{{ $json.relatedPostsList }}
+Never link to any other /blog/ address and never invent a slug. If the list says none are available, use only the closing line link. Keep the trailing slash on every internal link.
+
+=== TONE AND FORMATTING RULES ===
+- Write like a knowledgeable consultant who understands operations in Saudi Arabia deeply, in plain and specific language.
+- Never mention Accez before the Accez section, except in the closing line.
+- Headings: ## for sections and ### for subsections. #### is allowed only when a subsection really needs it. Never use a single # heading.
+- The site renders: ##, ### and #### headings, bullets written with "- " or "* ", numbered lists "1. ", **bold**, *italic*, [links](url), "> " blockquotes, and markdown tables. Use a table only for a genuine side by side comparison, at most one.
+- Never output: code blocks or code fences, raw HTML tags, images (you have no real image URLs), or frontmatter anywhere except the very top.
+- Punctuation, in the frontmatter AND the body: never use an em dash (—), an en dash (–), or a hyphen with spaces around it ( - ) as punctuation. Use a comma, colon, full stop or parentheses instead. Hyphens inside words (short-term, check-in) are fine. Write ranges in words ("between 3 and 5 days"), not with a dash.
+- Bold a maximum of 2 or 3 phrases per section, only the most important ones.
+- Length: 1300 to 1700 words.
+
+=== OUTPUT RULES ===
+Output raw markdown only, starting with the frontmatter. No commentary, no code fences, no explanation before or after.
