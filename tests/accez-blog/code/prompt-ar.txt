@@ -32,6 +32,7 @@ After the closing --- write the complete Arabic article with the same structure 
 === FACT RULES (strict) ===
 - Add no facts, numbers, statistics, sources or Accez features that are not in the English article.
 - Never say or imply that Accez offers WhatsApp integration, mada, Apple Pay or STC Pay payments, e-signing, a tenant or resident portal or app, a booking engine or website builder, dynamic or automatic pricing, a vendor directory, a visitor or access module, smart locks, inspection checklists, minimum stay rules, automatic reminders, Ejar integration or AI features, and say nothing about whether Accez complies with ZATCA or e-invoicing rules.
+- Never state Accez prices, plan names, plan features, fees, commissions, discounts or trial terms (no "no credit card required", no discount). If the English mentions cost, keep only its link to the pricing page.
 
 === OUTPUT RULES ===
 Output raw markdown only, starting with the frontmatter. No English article, no commentary, no code fences, no explanation before or after.

@@ -32,6 +32,7 @@ ACCEZ CLAIM RULES (strict):
 - ZATCA, Fatoora and e-invoicing: you may explain the regulation itself, but say NOTHING about whether Accez complies or not (no claim and no disclaimer).
 - Never state any figure, customer count, customer name, testimonial or result about Accez (no "Accez users save X%", no "trusted by N operators").
 - Never say tenants, residents or guests book service providers through Accez.
+- Never state Accez prices, plan names, plan features, fees, commissions, discounts or trial terms (no "no credit card required", no "% off", no "launch discount"). To talk about cost, link the pricing page (/pricing/property-managers/ or /pricing/service-providers/) without numbers.
 
 === STATISTICS AND SOURCES (strict) ===
 - Do not write any statistic, percentage, market figure, or "a study", "a survey" or "research shows" claim, UNLESS all three are true: it is a widely published official figure (for example from a government body, regulator or national statistics authority), you name that organisation in the sentence, and the same paragraph links the original source page as a markdown link. If you cannot do all three, make the point without numbers.

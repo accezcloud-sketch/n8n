@@ -160,7 +160,9 @@ const NEVER_CLAIM = new RegExp([
   'minimum[\\s-]?stay', 'الحد\\s+الأدنى\\s+(?:ل)?(?:مدة\\s+)?(?:ال)?إقامة',
   'automat\\w*\\s+(?:rent\\s+|payment\\s+)?reminders?', 'auto[\\s-]?reminders?', 'reminders?\\s+(?:are\\s+)?sent\\s+automatically', 'تذكيرات?\\s+(?:تلقائية|آلية)', 'التذكير\\s+(?:ال)?(?:تلقائي|آلي)',
   '\\bejar\\b', 'منصة\\s+إيجار', 'إيجار\\s+الإلكترونية',
-  '\\bAI\\b', 'artificial\\s+intelligence', 'الذكاء\\s+الاصطناعي'
+  '\\bAI\\b', 'artificial\\s+intelligence', 'الذكاء\\s+الاصطناعي',
+  // Pricing details the owner does not want stated (2026-10-27).
+  'credit\\s+card', 'بطاقة\\s+(?:ال)?ائتمان', 'launch\\s+discount', '\\d+\\s*%\\s*off\\b', 'خصم\\s+(?:ال)?إطلاق', 'dedicated\\s+account\\s+manager', 'custom\\s+development', 'bulk\\s+(?:data\\s+)?import', 'instant\\s+(?:order\\s+)?confirmation'
 ].join('|'), 'i');
 const BOOK_PROVIDERS = /(tenants?|residents?|guests?)\b[^.\n]{0,80}\bbook\w*\b[^.\n]{0,60}\b(service\s+providers?|providers?|barbers?|salons?|spas?|cleaners?)|(المستأجر|المستأجرين|السكان|النزلاء|الضيوف)[^.\n]{0,80}(يحجز|حجز)[^.\n]{0,60}(مقدمي\s+الخدمات|مزودي\s+الخدمات)/i;
 const accezSections = [];
