@@ -298,7 +298,8 @@ ok(qp && qp.title === 'The "Green" Lease: Cutting Costs \\ Going Green' && qp.ti
 
 // =====================================================================
 section('Quality Gate blocks bad output (nothing pushed, row marked "needs review")');
-for (const [label, v] of Object.entries(S.bad)) {
+const REPAIRED = ['closing line links the wrong solution page', 'Arabic closing line links the wrong solution page'];
+for (const [label, v] of Object.entries(S.bad).filter(([k]) => !REPAIRED.includes(k))) {
   const b = run({ en: v.en, ar: v.ar });
   ok(!b.gate.qualityPassed && !b.pushed && /^needs review: /.test(b.sheet.Status) && b.output.status === 'Needs review',
     'blocked: ' + label + ' -> ' + (b.sheet && b.sheet.Status || '').slice(14, 120));
@@ -311,13 +312,20 @@ for (const [label, v] of Object.entries(S.allowed)) {
 // =====================================================================
 section('Closing line follows the topic (property vs service business)');
 const SP_TOPIC = 'Reducing No-Shows at Barbershops and Salons';
+const lastOf = s => s.trim().split('\n').filter(l => l.trim()).pop();
+for (const label of REPAIRED) {
+  const v = S.bad[label];
+  const b = run({ en: v.en, ar: v.ar });
+  const [enP, arP] = b.pushed ? b.pushed.fileContent.split('<!-- AR -->') : ['', ''];
+  ok(b.gate.qualityPassed && lastOf(enP).includes('](/solutions/property-managers/)') && lastOf(arP).includes('](/ar/solutions/property-managers/)'), 'repaired, not blocked: ' + label + (b.gate.qualityPassed ? '' : ' ' + b.gate.qualityReport));
+}
 const sp = runPipeline(WF, { topic: SP_TOPIC, en: S.serviceProvider.en, ar: S.serviceProvider.ar, unsplash: UNSPLASH });
 ok(sp.plan.solution === 'service-providers' && sp.prompt.includes('/solutions/service-providers/') && sp.promptAr.includes('/ar/solutions/service-providers/'), 'service business topic: prompts ask for /solutions/service-providers/ (and /ar/...)');
 ok(sp.gate.qualityPassed, 'service business post ending with /solutions/service-providers/ passes ' + (sp.gate.qualityPassed ? '' : sp.gate.qualityReport));
 const spWrong = runPipeline(WF, { topic: SP_TOPIC, en: S.en, ar: S.ar, unsplash: UNSPLASH });
-ok(!spWrong.gate.qualityPassed && /does not end with a closing line linking \/solutions\/service-providers\//.test(spWrong.gate.qualityReport), 'service business post ending with the property page is blocked');
+ok(spWrong.gate.qualityPassed && lastOf(spWrong.pushed.fileContent.split('<!-- AR -->')[0]).includes('](/solutions/service-providers/)') && lastOf(spWrong.pushed.fileContent.split('<!-- AR -->')[1]).includes('](/ar/solutions/service-providers/)'), 'service business post ending with the property page: closing line replaced with the service provider page (EN and AR)');
 const pmWrong = run({ en: S.serviceProvider.en, ar: S.serviceProvider.ar });
-ok(!pmWrong.gate.qualityPassed && /linking \/solutions\/property-managers\//.test(pmWrong.gate.qualityReport) && /linking \/ar\/solutions\/property-managers\//.test(pmWrong.gate.qualityReport), 'property post ending with the service provider page is blocked (EN and AR)');
+ok(pmWrong.gate.qualityPassed && lastOf(pmWrong.pushed.fileContent.split('<!-- AR -->')[0]).includes('](/solutions/property-managers/)') && lastOf(pmWrong.pushed.fileContent.split('<!-- AR -->')[1]).includes('](/ar/solutions/property-managers/)'), 'property post ending with the service provider page: closing line replaced (EN and AR)');
 const { code } = loadWorkflow(WF);
 const planFor = (topic, extra = {}) => runCode(code('Collect Existing Posts'), {
   input: (extra.slugs || OTHER_SLUGS).map(s => ({ json: { name: s + '.md' } })),
@@ -485,6 +493,31 @@ for (const [t, want] of [
 }
 
 // =====================================================================
+section('First live run, 7 Nov 2026: Ejar lease topic stopped for review');
+// The Arabic half did not end with the solution link, and the Accez section said "Ejar".
+const arNoClose = S.ar.trim().split('\n').filter(l => !l.includes('](/ar/solutions/property-managers/)')).join('\n') + '\n';
+const nc = run({ ar: arNoClose });
+const ncAr = nc.pushed ? nc.pushed.fileContent.split('<!-- AR -->')[1] : '';
+ok(nc.gate.qualityPassed && /^اكتشف كيف يجمع \[حل أكسيز لإدارة العقارات\]\(\/ar\/solutions\/property-managers\/\)/.test(lastOf(ncAr)), 'Arabic closing line missing: the standard one is added, post not stopped ' + (nc.gate.qualityPassed ? '' : nc.gate.qualityReport));
+const arDiscAfter = S.ar.trim() + '\n\n*هذه المقالة معلومات عامة وليست استشارة قانونية أو ضريبية أو مالية.*\n';
+const da = run({ ar: arDiscAfter });
+ok(da.gate.qualityPassed && lastOf(da.pushed.fileContent.split('<!-- AR -->')[1]) === S.CLOSE_AR, 'disclaimer after the closing line: the closing line is moved back to the end');
+const cut = run({ en: S.en.replace(/## Key Takeaways[\s\S]*?(?=\n```|$)/, '') });
+ok(!cut.gate.qualityPassed && /Key Takeaways" heading is missing/.test(cut.gate.qualityReport), 'English cut off before Key Takeaways: still stopped (the repaired closing line cannot hide it)');
+const accezSection = t => S.en.replace(/^(## [^\n]*Accez[^\n]*\n\n)/m, '$1' + t + '\n\n');
+const ejarOk = run({ en: accezSection('Accez keeps each lease, its rent schedule and the Ejar contract number together, so the details are ready when you document the contract on Ejar.') });
+ok(ejarOk.gate.qualityPassed, 'Accez section may mention Ejar (keeps the Ejar contract number) ' + (ejarOk.gate.qualityPassed ? '' : ejarOk.gate.qualityReport));
+for (const claim of ['Accez registers every lease on Ejar for you.', '- **Ejar sync:** leases flow straight into Ejar.', 'Accez submits contracts directly to Ejar.', 'Leases are uploaded automatically to Ejar.']) {
+  const b = run({ en: accezSection(claim) });
+  ok(!b.gate.qualityPassed && /Ejar/.test(b.gate.qualityReport), 'blocked Ejar claim: "' + claim + '"');
+}
+const arEjarOk = run({ ar: S.ar.replace(/^(## [^\n]*(?:أكسيز|Accez)[^\n]*\n\n)/m, '$1تحفظ أكسيز كل عقد مع رقم عقد إيجار وجدول دفعاته، فتكون البيانات جاهزة حين توثّق العقد في منصة إيجار بنفسك.\n\n') });
+ok(arEjarOk.gate.qualityPassed, 'Arabic Accez section may mention منصة إيجار ' + (arEjarOk.gate.qualityPassed ? '' : arEjarOk.gate.qualityReport));
+const arEjarClaim = run({ ar: S.ar.replace(/^(## [^\n]*(?:أكسيز|Accez)[^\n]*\n\n)/m, '$1تتكامل أكسيز مع منصة إيجار وتوثّق العقود تلقائيًا في منصة إيجار.\n\n') });
+ok(!arEjarClaim.gate.qualityPassed && /Ejar|إيجار/.test(arEjarClaim.gate.qualityReport), 'Arabic Ejar integration claim is blocked');
+ok(/never that Accez registers, documents, submits, uploads or syncs anything with Ejar/.test(r.prompt), 'English prompt explains how Ejar may be mentioned in the Accez section');
+
+// =====================================================================
 section('Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026');
 // Each live post split back into the two Gemini answers it came from, then run
 // through this workflow. Every one must be stopped for review, for the right reasons.
@@ -503,7 +536,7 @@ const splitPost = text => {
 const RED_EXPECT = {
   'writing-sops-the-playbooks-that-keep-operations-consistent-a.md': [/400\+/, /e-?sign/i, /study or research|percentage/, /77%/, /portal\.accez\.cloud/, /template heading/, /dash/, /line in English/],
   'building-and-structuring-a-property-management-team-as-you-g.md': [/400\+|400 channels/i, /percentage/, /English part contains Arabic text/, /heading that is not in Arabic/, /all-in-one/, /التوقيع الإلكتروني/, /portal\.accez\.cloud/],
-  'managing-hoas-and-owners-associations-beyond-single-unit-ren.md': [/e-?sign/i, /77%/, /study or research/, /portal\.accez\.cloud/, /does not end with a closing line/]
+  'managing-hoas-and-owners-associations-beyond-single-unit-ren.md': [/e-?sign/i, /77%/, /study or research/, /portal\.accez\.cloud/]
 };
 for (const [file, expect] of Object.entries(RED_EXPECT)) {
   const post = splitPost(fs.readFileSync(path.join(RED, file), 'utf8'));

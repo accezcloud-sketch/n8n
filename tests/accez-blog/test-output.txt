@@ -225,9 +225,9 @@ PASS blocked: unlinked percentage -> states a percentage without linking the sou
 PASS blocked: em dash -> uses an em dash or en dash
 PASS blocked: spaced hyphen in title -> uses a spaced hyphen " - " as punctuation
 PASS blocked: metaTitle too long -> metaTitle is 72 characters (max 60)
-PASS blocked: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic part does not end with a closing line linking /
-PASS blocked: Arabic cut off (no closing line) -> Arabic part does not end with a closing line linking /ar/solutions/property-managers/ (wrong solution page
-PASS blocked: English cut off (no closing line) -> English part does not end with a closing line linking /solutions/property-managers/ (wrong solution page, 
+PASS blocked: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic FAQ heading is not exactly "## الأسئلة الشائعة"
+PASS blocked: Arabic cut off (no closing line) -> Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading is not exactly "## أبرز ا
+PASS blocked: English cut off (no closing line) -> English "## Key Takeaways" heading is missing (the output may be cut off)
 PASS blocked: code fence in body -> body contains a code fence
 PASS blocked: YAML in body -> body contains frontmatter (YAML) lines
 PASS blocked: wrong Arabic heading -> Arabic takeaways heading is not exactly "## أبرز النقاط"
@@ -243,9 +243,7 @@ PASS blocked: template heading "A Deep Dive into ..." -> uses a template heading
 PASS blocked: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> uses a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل مختل
 PASS blocked: Arabic template heading "ما الذي يتعطل ولماذا" -> uses a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
 PASS blocked: generic heading "Conclusion" -> uses a generic heading: "Conclusion"
-PASS blocked: ends with "Visit portal.accez.cloud" instead of the solution link -> English part does not end with a closing line linking /solutions/property-managers/ (wrong solution page, 
-PASS blocked: closing line links the wrong solution page -> English part does not end with a closing line linking /solutions/property-managers/ (wrong solution page, 
-PASS blocked: Arabic closing line links the wrong solution page -> Arabic part does not end with a closing line linking /ar/solutions/property-managers/ (wrong solution page
+PASS blocked: ends with "Visit portal.accez.cloud" instead of the solution link -> links to or mentions portal.accez.cloud (posts end with the solution page link instead)
 PASS blocked: portal.accez.cloud link inside the body -> links to or mentions portal.accez.cloud (posts end with the solution page link instead)
 PASS blocked: Accez claims mada, Apple Pay and STC Pay -> the Accez section claims a feature Accez does not offer ("mada"); claims or discusses an unconfirmed Accez
 PASS blocked: Accez and ZATCA compliance -> claims or discusses an unconfirmed Accez feature ("ZATCA"): "Accez is fully compliant with ZATCA e-invoici
@@ -257,7 +255,7 @@ PASS blocked: Accez claims automatic reminders -> claims or discusses an unconfi
 PASS blocked: Accez claims minimum stay rules -> the Accez section claims a feature Accez does not offer ("minimum stay"); claims or discusses an unconfirm
 PASS blocked: Accez claims inspection checklists -> claims or discusses an unconfirmed Accez feature ("inspection checklists"): "Accez inspection checklists m
 PASS blocked: Accez claims visitor management -> claims or discusses an unconfirmed Accez feature ("visitor management"): "Accez includes visitor managemen
-PASS blocked: Accez claims Ejar integration -> claims or discusses an unconfirmed Accez feature ("Ejar"): "Accez registers every lease with Ejar for you.
+PASS blocked: Accez claims Ejar integration -> says Accez files or syncs with Ejar: "Accez registers every lease with Ejar for you."
 PASS blocked: Accez claims a booking engine -> claims or discusses an unconfirmed Accez feature ("direct booking website"): "Accez gives you a direct boo
 PASS blocked: Accez claims a vendor directory -> claims or discusses an unconfirmed Accez feature ("vendor directory"): "Accez has a vendor directory of ap
 PASS blocked: Accez claims smart locks -> claims or discusses an unconfirmed Accez feature ("smart locks"): "Accez connects to smart locks for keyle
@@ -270,10 +268,12 @@ PASS allowed: mada and WhatsApp discussed in general
 PASS allowed: Arabic: Ejar discussed in general 
 
 # Closing line follows the topic (property vs service business)
+PASS repaired, not blocked: closing line links the wrong solution page
+PASS repaired, not blocked: Arabic closing line links the wrong solution page
 PASS service business topic: prompts ask for /solutions/service-providers/ (and /ar/...)
 PASS service business post ending with /solutions/service-providers/ passes 
-PASS service business post ending with the property page is blocked
-PASS property post ending with the service provider page is blocked (EN and AR)
+PASS service business post ending with the property page: closing line replaced with the service provider page (EN and AR)
+PASS property post ending with the service provider page: closing line replaced (EN and AR)
 PASS solution page for "Running a Salon Waitlist Without Losing Walk-Ins" = service-providers
 PASS solution page for "Loyalty Points and Gift Cards for Spas" = service-providers
 PASS solution page for "Coaching Businesses: Taking Deposits for Appointments" = service-providers
@@ -370,9 +370,22 @@ PASS slug for "Managing HOAs and Owners Associations: Beyond Single-Unit Rentals
 PASS slug for "Sustainability and Energy Efficiency: Cutting Costs While Going Green" = sustainability-and-energy-efficiency-cutting-costs
 PASS slug for "Short Topic Under Sixty Characters Ends With And" = short-topic-under-sixty-characters-ends-with-and
 
-# Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026
-PASS blocked: writing-sops-the-playbooks-that-keep-ope (22 problems found)
-PASS blocked: building-and-structuring-a-property-mana (31 problems found)
-PASS blocked: managing-hoas-and-owners-associations-be (13 problems found)
+# First live run, 7 Nov 2026: Ejar lease topic stopped for review
+PASS Arabic closing line missing: the standard one is added, post not stopped 
+PASS disclaimer after the closing line: the closing line is moved back to the end
+PASS English cut off before Key Takeaways: still stopped (the repaired closing line cannot hide it)
+PASS Accez section may mention Ejar (keeps the Ejar contract number) 
+PASS blocked Ejar claim: "Accez registers every lease on Ejar for you."
+PASS blocked Ejar claim: "- **Ejar sync:** leases flow straight into Ejar."
+PASS blocked Ejar claim: "Accez submits contracts directly to Ejar."
+PASS blocked Ejar claim: "Leases are uploaded automatically to Ejar."
+PASS Arabic Accez section may mention منصة إيجار 
+PASS Arabic Ejar integration claim is blocked
+PASS English prompt explains how Ejar may be mentioned in the Accez section
 
-338 checks, ALL PASSED
+# Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026
+PASS blocked: writing-sops-the-playbooks-that-keep-ope (20 problems found)
+PASS blocked: building-and-structuring-a-property-mana (29 problems found)
+PASS blocked: managing-hoas-and-owners-associations-be (11 problems found)
+
+349 checks, ALL PASSED
