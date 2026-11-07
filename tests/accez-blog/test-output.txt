@@ -171,8 +171,8 @@ PASS Arabic prompt asks for the closing line to /ar/solutions/property-managers/
 PASS combined frontmatter has the English fields (call 1) and Arabic fields (call 2)
 PASS combined body: English, one <!-- AR --> marker, Arabic
 PASS Arabic links to site pages get the /ar prefix
-PASS empty English answer stops the run (red execution, topic stays pending): No content received from Gemini (English article). Check the
-PASS empty Arabic answer stops the run (red execution, topic stays pending): No content received from Gemini (Arabic article). Check the 
+PASS empty English answer: no red run; Gemini is asked again, then the topic is skipped 
+PASS empty Arabic answer: no red run; Gemini is asked again, then the topic is skipped 
 PASS Arabic answer with "title:" instead of "titleAr:" still fills the Arabic fields, English title kept
 PASS Arabic answer that repeats the English article before <!-- AR --> is cleaned
 PASS Arabic text the English call added after a marker is ignored
@@ -209,61 +209,66 @@ PASS jsonBody expression returns a JSON string (parsed by the HTTP node)
 PASS IndexNow failure: reported, run still succeeds, Facebook still posted
 
 # Image, GitHub and Facebook failures
-PASS downloadError: default cover, no credit, readable error "timeout"
-PASS pushError: default cover, no credit, readable error "sha missing"
-PASS no suitable photo after 3 attempts: nothing published with the shared placeholder, row skipped
+PASS downloadError: Accez default cover, no credit, readable error "timeout"
+PASS pushError: Accez default cover, no credit, readable error "sha missing"
+PASS Unsplash gives nothing on all 3 attempts: published on the last attempt with the Accez default cover (not lost)
+PASS the default cover exists on the website (jpg and webp)
 PASS Unsplash search error -> fallback search used (no IF type error)
 PASS Facebook failure reported, sheet already marked used
 PASS GitHub push failure ends in Stop and Error with the plain message, sheet untouched: GitHub push failed for "Sustainability and Energy Efficiency: Cutting Costs While Going Green": file already exists
-PASS GitHub listing failed: duplicate check skipped, no articles offered, gate rejects any /blog/ link
+PASS GitHub listing failed: no articles offered, any /blog/ link is unlinked (words kept), post published
 PASS unescaped quotes/colon/backslash in titles survive: The "Green" Lease: Cutting Costs \ Going Green
 
-# Quality Gate blocks bad output (rewritten 3 times, then the topic is skipped; nothing pushed)
-PASS blocked: 400+ channels -> ons "400+" channels (Accez connects Airbnb, Booking.com and Expedia only)
-PASS blocked: 77% statistic -> ins the planted "77%" statistic; states a percentage without linking the source: "Property managers often 
-PASS blocked: unlinked study ->  a study or research without linking the source: "Property managers often grapple with the paradox of incr
-PASS blocked: unlinked percentage -> s a percentage without linking the source: "Property managers often grapple with the paradox of increasing
-PASS blocked: em dash -> an em dash or en dash
-PASS blocked: spaced hyphen in title -> a spaced hyphen " - " as punctuation
-PASS blocked: metaTitle too long -> itle is 72 characters (max 60)
-PASS blocked: no Arabic part -> c part is missing, too short or not in Arabic; Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Ara
-PASS blocked: Arabic cut off (no closing line) -> c FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading is not exactly "## أبرز النقاط
-PASS blocked: English cut off (no closing line) -> sh "## Key Takeaways" heading is missing (the output may be cut off)
-PASS blocked: code fence in body -> contains a code fence
-PASS blocked: YAML in body -> contains frontmatter (YAML) lines
-PASS blocked: wrong Arabic heading -> c takeaways heading is not exactly "## أبرز النقاط"
-PASS blocked: link to missing article ->  to an article that does not exist: /blog/how-to-cut-energy-bills-in-riyadh/
-PASS blocked: Accez claims WhatsApp -> ccez section claims a feature Accez does not offer ("WhatsApp"); claims or discusses an unconfirmed Accez 
-PASS blocked: tenants book providers via Accez -> tenants or guests book service providers through Accez
-PASS blocked: figure about Accez -> s a percentage without linking the source: "Property managers often grapple with the paradox of increasing
-PASS blocked: raw HTML -> contains raw HTML tags
-PASS blocked: vague link text -> text is not descriptive: "here"
-PASS blocked: template heading "What High Performers Do Differently" -> a template heading instead of one that describes the section: "What High Performers Do Differently"
-PASS blocked: template heading "What Breaks and Why" -> a template heading instead of one that describes the section: "The Hidden Costs: What Breaks and Why"
-PASS blocked: template heading "A Deep Dive into ..." -> a template heading instead of one that describes the section: "A Deep Dive into Energy Waste"
-PASS blocked: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل مختلف"
-PASS blocked: Arabic template heading "ما الذي يتعطل ولماذا" -> a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
-PASS blocked: generic heading "Conclusion" -> a generic heading: "Conclusion"
-PASS blocked: ends with "Visit portal.accez.cloud" instead of the solution link ->  to or mentions portal.accez.cloud (posts end with the solution page link instead)
-PASS blocked: portal.accez.cloud link inside the body ->  to or mentions portal.accez.cloud (posts end with the solution page link instead)
-PASS blocked: Accez claims mada, Apple Pay and STC Pay -> ccez section claims a feature Accez does not offer ("mada"); claims or discusses an unconfirmed Accez feat
-PASS blocked: Accez and ZATCA compliance -> s or discusses an unconfirmed Accez feature ("ZATCA"): "Accez is fully compliant with ZATCA e-invoicing ru
-PASS blocked: Accez and ZATCA non-compliance -> s or discusses an unconfirmed Accez feature ("ZATCA"): "Note that Accez is not yet certified for ZATCA Fat
-PASS blocked: Accez claims e-signing -> s or discusses an unconfirmed Accez feature ("e-sign"): "Accez lets owners e-sign leases in minutes."
-PASS blocked: Accez claims a tenant portal -> ccez section claims a feature Accez does not offer ("Tenant portal"); claims or discusses an unconfirmed A
-PASS blocked: Accez claims dynamic pricing -> s or discusses an unconfirmed Accez feature ("dynamic pricing"): "Accez also offers dynamic pricing that a
-PASS blocked: Accez claims automatic reminders -> s or discusses an unconfirmed Accez feature ("automatic rent reminders"): "Accez sends automatic rent remi
-PASS blocked: Accez claims minimum stay rules -> ccez section claims a feature Accez does not offer ("minimum stay"); claims or discusses an unconfirmed Ac
-PASS blocked: Accez claims inspection checklists -> s or discusses an unconfirmed Accez feature ("inspection checklists"): "Accez inspection checklists make m
-PASS blocked: Accez claims visitor management -> s or discusses an unconfirmed Accez feature ("visitor management"): "Accez includes visitor management for
-PASS blocked: Accez claims Ejar integration -> Accez files or syncs with Ejar: "Accez registers every lease with Ejar for you."
-PASS blocked: Accez claims a booking engine -> s or discusses an unconfirmed Accez feature ("direct booking website"): "Accez gives you a direct booking 
-PASS blocked: Accez claims a vendor directory -> s or discusses an unconfirmed Accez feature ("vendor directory"): "Accez has a vendor directory of approve
-PASS blocked: Accez claims smart locks -> s or discusses an unconfirmed Accez feature ("smart locks"): "Accez connects to smart locks for keyless ch
-PASS blocked: Accez claims AI features -> s or discusses an unconfirmed Accez feature ("AI"): "Accez uses AI to predict which units need repairs."
-PASS blocked: Arabic: Accez claims WhatsApp -> s or discusses an unconfirmed Accez feature ("واتساب"): "ويتكامل Accez مع واتساب لمراسلة النزلاء."
-PASS blocked: Arabic: Accez claims e-signing -> s or discusses an unconfirmed Accez feature ("التوقيع الإلكتروني"): "ويتيح أكسيز التوقيع الإلكتروني لعقود 
-PASS blocked: Arabic: Accez claims mada -> s or discusses an unconfirmed Accez feature ("عبر مدى"): "ويقبل Accez الدفع عبر مدى وأبل باي."
+# Fixed directly, no rewrite: each problem is corrected by code and the post is published
+PASS fixed directly: 400+ channels (replaced "400+ channels" with Airbnb, Booking.com and Expedia)
+PASS fixed directly: 77% statistic (removed an unsourced statistic)
+PASS fixed directly: unlinked study (removed an unsourced statistic)
+PASS fixed directly: unlinked percentage (removed an unsourced statistic)
+PASS fixed directly: em dash (replaced dashes with commas)
+PASS fixed directly: spaced hyphen in title (replaced dashes in title)
+PASS fixed directly: metaTitle too long (shortened metaTitle)
+PASS fixed directly: code fence in body (removed a code block)
+PASS fixed directly: YAML in body (removed frontmatter lines from the text)
+PASS fixed directly: wrong Arabic heading (named the takeaways heading exactly)
+PASS fixed directly: link to missing article (unlinked a link to a page that does not exist)
+PASS fixed directly: Accez claims WhatsApp (removed a claim Accez does not make)
+PASS fixed directly: tenants book providers via Accez (removed a claim Accez does not make)
+PASS fixed directly: figure about Accez (removed an unsourced statistic)
+PASS fixed directly: raw HTML (removed raw HTML tags)
+PASS fixed directly: vague link text (unlinked vague link text)
+PASS fixed directly: generic heading "Conclusion" (removed a generic heading)
+PASS fixed directly: ends with "Visit portal.accez.cloud" instead of the solution link (removed a portal.accez.cloud mention)
+PASS fixed directly: closing line links the wrong solution page ()
+PASS fixed directly: Arabic closing line links the wrong solution page ()
+PASS fixed directly: portal.accez.cloud link inside the body (removed a portal.accez.cloud mention)
+PASS fixed directly: Accez claims mada, Apple Pay and STC Pay (removed a claim Accez does not make)
+PASS fixed directly: Accez and ZATCA compliance (removed a claim Accez does not make)
+PASS fixed directly: Accez and ZATCA non-compliance (removed a claim Accez does not make)
+PASS fixed directly: Accez claims e-signing (removed a claim Accez does not make)
+PASS fixed directly: Accez claims a tenant portal (removed a claim Accez does not make)
+PASS fixed directly: Accez claims dynamic pricing (removed a claim Accez does not make)
+PASS fixed directly: Accez claims automatic reminders (removed a claim Accez does not make)
+PASS fixed directly: Accez claims minimum stay rules (removed a claim Accez does not make)
+PASS fixed directly: Accez claims inspection checklists (removed a claim Accez does not make)
+PASS fixed directly: Accez claims visitor management (removed a claim Accez does not make)
+PASS fixed directly: Accez claims Ejar integration (removed a claim Accez does not make)
+PASS fixed directly: Accez claims a booking engine (removed a claim Accez does not make)
+PASS fixed directly: Accez claims a vendor directory (removed a claim Accez does not make)
+PASS fixed directly: Accez claims smart locks (removed a claim Accez does not make)
+PASS fixed directly: Accez claims AI features (removed a claim Accez does not make)
+PASS fixed directly: Arabic: Accez claims WhatsApp (removed a claim Accez does not make)
+PASS fixed directly: Arabic: Accez claims e-signing (removed a claim Accez does not make)
+PASS fixed directly: Arabic: Accez claims mada (removed a claim Accez does not make)
+
+# Needs a new draft: rewritten 3 times, then the topic is skipped and the next one written
+PASS rewrite, then skipped: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic FAQ heading is not exactly "## الأسئلة الش
+PASS rewrite, then skipped: Arabic cut off (no closing line) -> Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading is not exactly "## أ
+PASS rewrite, then skipped: English cut off (no closing line) -> English "## Key Takeaways" heading is missing (the output may be cut off)
+PASS rewrite, then skipped: template heading "What High Performers Do Differently" -> uses a template heading instead of one that describes the section: "What High Performers Do Different
+PASS rewrite, then skipped: template heading "What Breaks and Why" -> uses a template heading instead of one that describes the section: "The Hidden Costs: What Breaks and
+PASS rewrite, then skipped: template heading "A Deep Dive into ..." -> uses a template heading instead of one that describes the section: "A Deep Dive into Energy Waste"
+PASS rewrite, then skipped: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> uses a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل
+PASS rewrite, then skipped: Arabic template heading "ما الذي يتعطل ولماذا" -> uses a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
 PASS allowed: ZATCA discussed in general 
 PASS allowed: mada and WhatsApp discussed in general 
 PASS allowed: Arabic: Ejar discussed in general 
@@ -314,7 +319,7 @@ PASS topics with no signal get varied formats (explainer, how-to, comparison, ch
 
 # Sheet status values: plain text in the existing status column
 PASS "used" written as text to Status (no new columns): used
-PASS "skipped" written as text to Status (no new columns): skipped: uses an em dash or en dash
+PASS "skipped" written as text to Status (no new columns): skipped: uses a template heading instead of one th
 PASS "duplicate" written as text to Status (no new columns): duplicate: preventive-maintenance-how-to-stop-smal
 
 # Slug cutter
@@ -356,11 +361,11 @@ PASS new steps reuse the Unsplash login and never stop the run
 PASS English prompt asks for a concrete, non-religious photo subject
 
 # Each language stays in its own half
-PASS Arabic question in the English FAQ is blocked
+PASS Arabic question and answer in the English FAQ: needs a new draft (rewritten, then skipped)
 PASS an Arabic term inside an English sentence is allowed 
-PASS English heading in the Arabic half is blocked
-PASS English disclaimer in the Arabic half is blocked
-PASS "all-in-one" about Accez is blocked
+PASS English question in the Arabic FAQ: needs a new draft
+PASS English disclaimer in the Arabic half: replaced by the Arabic one, published
+PASS "all-in-one" about Accez: the sentence is removed, published
 PASS prompt: serviced apartments (not hotels); providers include personal trainers
 PASS Arabic prompt: every heading and sentence in Arabic
 
@@ -388,17 +393,34 @@ PASS Arabic closing line missing: the standard one is added, post not stopped
 PASS disclaimer after the closing line: the closing line is moved back to the end
 PASS English cut off before Key Takeaways: still stopped (the repaired closing line cannot hide it)
 PASS Accez section may mention Ejar (keeps the Ejar contract number) 
-PASS blocked Ejar claim: "Accez registers every lease on Ejar for you."
-PASS blocked Ejar claim: "- **Ejar sync:** leases flow straight into Ejar."
-PASS blocked Ejar claim: "Accez submits contracts directly to Ejar."
-PASS blocked Ejar claim: "Leases are uploaded automatically to Ejar."
+PASS Ejar claim removed, post published: "Accez registers every lease on Ejar for you."
+PASS Ejar claim removed, post published: "- **Ejar sync:** leases flow straight into Ejar."
+PASS Ejar claim removed, post published: "Accez submits contracts directly to Ejar."
+PASS Ejar claim removed, post published: "Leases are uploaded automatically to Ejar."
 PASS Arabic Accez section may mention منصة إيجار 
-PASS Arabic Ejar integration claim is blocked
+PASS Arabic Ejar integration claim removed, post published
 PASS English prompt explains how Ejar may be mentioned in the Accez section
 
 # Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026
-PASS blocked: writing-sops-the-playbooks-that-keep-ope (20 problems found)
-PASS blocked: building-and-structuring-a-property-mana (29 problems found)
-PASS blocked: managing-hoas-and-owners-associations-be (11 problems found)
+PASS red team writing-sops-the-playbooks-that-keep-ope: fixed by code [7], left for a rewrite: 4
+PASS red team building-and-structuring-a-property-mana: fixed by code [6], left for a rewrite: 16
+PASS red team managing-hoas-and-owners-associations-be: fixed by code [5], left for a rewrite: 1
 
-360 checks, ALL PASSED
+# Red team: worst-case drafts against the fixes
+PASS a draft with 20 fixable problems at once is published on the first attempt (14 fixes) 
+PASS none of the problems survives in the published text
+PASS title dash became a colon; long search title cut on a whole word: "Sustainability: Cutting Costs While Going Green"
+PASS number range "3–5" became "3 to 5"; "400+ channels" became the three real channels
+PASS vague and broken links keep their words but lose the link
+PASS Arabic disclaimer in Arabic; both halves still end with the solution link
+PASS a statistic WITH its official source linked in the same paragraph is kept
+PASS hyphens inside link addresses are never touched
+PASS a FAQ answer that is only a statistic: answer and question removed, post still published
+PASS bullets inside a quote ("> - item") are not treated as dashes
+PASS an Arabic heading that simply says "differently" is not a template heading
+PASS "all in one place" in the Accez section is kept (only "all-in-one platform" is a claim)
+PASS official Saudi tax rates (VAT 15%, real estate transactions tax 5%) are kept
+PASS Gemini returns a refusal or garbage: asked again, then skipped; no red run
+PASS every pending topic fails: each is skipped and the run ends quietly (no red run)
+
+378 checks, ALL PASSED
