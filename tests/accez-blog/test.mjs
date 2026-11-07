@@ -460,6 +460,8 @@ ok(/imageQuery/.test(r.prompt) && /never anything religious/.test(r.prompt), 'En
 section('Each language stays in its own half');
 const arInEn = run({ en: S.en.replace('## Frequently Asked Questions', '## Frequently Asked Questions\n\n### كيف أعرف متى حان الوقت لتوظيف المزيد من موظفي إدارة العقارات؟') });
 ok(!arInEn.gate.qualityPassed && /English part contains Arabic text/.test(arInEn.gate.qualityReport), 'Arabic question in the English FAQ is blocked');
+const arTerm = run({ en: S.en.replace(/^(## (?!Frequently)[^\n]*\n\n)([^\n#>-])/m, '$1Landlords often ask about the brokerage commission (السعي) and the lease documentation (توثيق العقد) before signing. $2') });
+ok(arTerm.gate.qualityPassed && /السعي/.test(arTerm.pushed.fileContent.split('<!-- AR -->')[0]), 'an Arabic term inside an English sentence is allowed ' + (arTerm.gate.qualityPassed ? '' : arTerm.gate.qualityReport));
 const enHeadInAr = run({ ar: S.ar.replace('## الأسئلة الشائعة', '## الأسئلة الشائعة\n\n### How do I know when it is time to hire more staff?') });
 ok(!enHeadInAr.gate.qualityPassed && /heading that is not in Arabic/.test(enHeadInAr.gate.qualityReport), 'English heading in the Arabic half is blocked');
 const enLineInAr = run({ ar: S.ar.replace('## أبرز النقاط', '*This article is general information for property operators and is not legal advice.*\n\n## أبرز النقاط') });

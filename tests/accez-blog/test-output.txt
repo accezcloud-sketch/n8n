@@ -356,6 +356,7 @@ PASS English prompt asks for a concrete, non-religious photo subject
 
 # Each language stays in its own half
 PASS Arabic question in the English FAQ is blocked
+PASS an Arabic term inside an English sentence is allowed 
 PASS English heading in the Arabic half is blocked
 PASS English disclaimer in the Arabic half is blocked
 PASS "all-in-one" about Accez is blocked
@@ -371,7 +372,7 @@ PASS slug for "Short Topic Under Sixty Characters Ends With And" = short-topic-u
 
 # Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026
 PASS blocked: writing-sops-the-playbooks-that-keep-ope (22 problems found)
-PASS blocked: building-and-structuring-a-property-mana (28 problems found)
+PASS blocked: building-and-structuring-a-property-mana (31 problems found)
 PASS blocked: managing-hoas-and-owners-associations-be (13 problems found)
 
-337 checks, ALL PASSED
+338 checks, ALL PASSED
