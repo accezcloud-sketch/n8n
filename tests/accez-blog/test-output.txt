@@ -127,6 +127,8 @@ PASS parameters of "Notify IndexNow" (httpRequest v4.2) are valid
 PASS parameters of "Sticky Note9" (stickyNote v1) are valid
 PASS parameters of "Sticky Note10" (stickyNote v1) are valid
 PASS parameters of "Sticky Note11" (stickyNote v1) are valid
+PASS parameters of "Read Used Cover Photos" (httpRequest v4.2) are valid
+PASS parameters of "Track Unsplash Download" (httpRequest v4.2) are valid
 PASS GitHub file:list = resource "file", operation "list", folder in "filePath" (the "Path" field; no returnAll for file:list)
 PASS GitHub listing is optional (continue on fail, always outputs)
 PASS Push Blog Post to GitHub: file create (default operation) with content and commit message
@@ -179,8 +181,8 @@ PASS Arabic answer in a code fence is unwrapped
 
 # Good sample end to end, read by the site's own parser
 PASS good sample passes the gate: all checks passed
-PASS pushed path content/blog/sustainability-and-energy-efficiency-cutting-costs-while.md
-PASS image path matches slug public/images/blog/sustainability-and-energy-efficiency-cutting-costs-while.jpg
+PASS pushed path content/blog/sustainability-and-energy-efficiency-cutting-costs.md
+PASS image path matches slug public/images/blog/sustainability-and-energy-efficiency-cutting-costs.jpg
 PASS site parser (gray-matter + createBlogRepository) reads the file
 PASS title keeps its colon: Sustainability and Energy Efficiency: Cutting Costs While Going Green
 PASS coverImage = pushed image path
@@ -210,7 +212,7 @@ PASS IndexNow failure: reported, run still succeeds, Facebook still posted
 # Image, GitHub and Facebook failures
 PASS downloadError: default cover, no credit, readable error "timeout"
 PASS pushError: default cover, no credit, readable error "sha missing"
-PASS no Unsplash result (fallback errored): default cover, still published
+PASS no suitable photo after both searches: nothing published with the shared placeholder, row marked needs review
 PASS Unsplash search error -> fallback search used (no IF type error)
 PASS Facebook failure reported, sheet already marked used
 PASS GitHub push failure ends in Stop and Error with the plain message, sheet untouched: GitHub push failed for "Sustainability and Energy Efficiency: Cutting Costs While Going Green": file already exists
@@ -291,7 +293,7 @@ PASS near duplicate: "Utility Billing Across a Rental Portfolio" -> utility-and-
 PASS near duplicate: "Owner Reporting: Statements That Send Themselves" -> automated-owner-reporting-statements-that-send-themselves (6 shared words (overlap 86%))
 PASS near duplicate: "Dynamic Pricing 101: Stop Leaving Money on the Table" -> dynamic-pricing-101-how-to-stop-leaving-money-on-the-table-every-night (7 shared words (overlap 78%))
 PASS near duplicate: "How to Create and Manage Properties in Accez.Cloud" -> how-to-create-manage-properties-accez-cloud (6 shared words (overlap 100%))
-PASS near duplicate: "Sustainability and Energy Efficiency: Cutting Costs While Going Green" -> sustainability-and-energy-efficiency-cutting-costs-while-goi (6 shared words (overlap 86%))
+PASS near duplicate: "Sustainability and Energy Efficiency: Cutting Costs While Going Green" -> sustainability-and-energy-efficiency-cutting-costs-while-goi (5 shared words (overlap 71%))
 PASS not a duplicate: "Preventive Maintenance Budgets for Compounds"
 PASS not a duplicate: "Choosing Between In-House and Outsourced Cleaning"
 PASS not a duplicate: "Reducing No-Shows at Barbershops and Salons"
@@ -299,7 +301,7 @@ PASS not a duplicate: "Guest Communication Templates for Check-In Day"
 PASS not a duplicate: "Rent Collection Reminders That Work"
 PASS not a duplicate: "How to Create and Manage Leases in Accez.Cloud"
 PASS not a duplicate: "Service Charges in Residential Compounds Explained"
-PASS no false duplicates: each of the 113 live post titles vs the other posts 
+PASS no false duplicates: each of the 88 live post titles vs the other posts 
 
 # Article format per topic
 PASS comparison topic -> comparison format
@@ -317,15 +319,61 @@ PASS "needs review" written as text to Status (no new columns): needs review: us
 PASS "duplicate" written as text to Status (no new columns): duplicate: preventive-maintenance-how-to-stop-smal
 
 # Slug cutter
-PASS slug sustainability-and-energy-efficiency-cutting-costs-while (56)
+PASS slug sustainability-and-energy-efficiency-cutting-costs (50)
 PASS slug property-insurance-and-liability-covering-the-risks-owners (58)
 PASS slug cash-flow-forecasting-for-property-management-businesses (56)
-PASS slug connecting-your-tools-why-api-integrations-matter-for (53)
-PASS slug cybersecurity-for-property-managers-protecting-tenant-and (57)
+PASS slug connecting-your-tools-why-api-integrations-matter (49)
+PASS slug cybersecurity-for-property-managers-protecting-tenant (53)
 PASS slug migrating-from-spreadsheets-and-legacy-software-without (55)
 PASS slug visitor-and-access-management-for-compounds-and-gated (53)
 PASS slug an-owners-guide-to-cafe-style-amenities (39)
 PASS slug supercalifragilisticexpialidociousandevenlongerwordthatkeeps (60)
 PASS no pending topic -> error (run stops instead of calling Gemini with nothing)
 
-299 checks, ALL PASSED
+# Cover photo choice (Nov 2026: a title search returned a scripture page)
+PASS Unsplash is searched with Gemini's concrete photo subject, not the title: checklist notebook pen
+PASS imageQuery is not published in the post
+PASS no imageQuery from Gemini: falls back to the tag words (sustainability energy efficiency)
+PASS first result is a scripture page: skipped, the checklist photo is used
+PASS 1600 px JPEG from the raw url: https://images.unsplash.com/photo-noteBBBBBBB?ixid=x&w=1600&q=80&fm=jpg&fit=crop
+PASS Unsplash download is reported (API rule): https://api.unsplash.com/photos/noteBBBBBBB/download?ixid=x
+PASS alt text describes the chosen photo
+PASS a photo matching the subject words beats the first result
+PASS a photo another post already uses (from /blog/covers.json) is skipped
+PASS used covers read from the site: https://www.accez.cloud/blog/covers.json
+PASS site list unavailable: the run continues and still picks a photo
+PASS first search has only unsuitable photos: the safe fallback search is used
+PASS fallback subject for property topics: modern apartment building exterior
+PASS skipped: wine
+PASS skipped: pork
+PASS skipped: portrait shape
+PASS skipped: small file
+PASS skipped: Unsplash+
+PASS skipped: no description
+PASS skipped: brand logo
+PASS skipped: church
+PASS search: 20 results, safe content filter, landscape
+PASS new steps reuse the Unsplash login and never stop the run
+PASS English prompt asks for a concrete, non-religious photo subject
+
+# Each language stays in its own half
+PASS Arabic question in the English FAQ is blocked
+PASS English heading in the Arabic half is blocked
+PASS English disclaimer in the Arabic half is blocked
+PASS "all-in-one" about Accez is blocked
+PASS prompt: serviced apartments (not hotels); providers include personal trainers
+PASS Arabic prompt: every heading and sentence in Arabic
+
+# Addresses never end on a dangling word
+PASS slug for "Building and Structuring a Property Management Team as You Grow" = building-and-structuring-a-property-management-team
+PASS slug for "Writing SOPs: The Playbooks That Keep Operations Consistent at Scale" = writing-sops-the-playbooks-that-keep-operations-consistent
+PASS slug for "Managing HOAs and Owners Associations: Beyond Single-Unit Rentals" = managing-hoas-and-owners-associations-beyond-single-unit
+PASS slug for "Sustainability and Energy Efficiency: Cutting Costs While Going Green" = sustainability-and-energy-efficiency-cutting-costs
+PASS slug for "Short Topic Under Sixty Characters Ends With And" = short-topic-under-sixty-characters-ends-with-and
+
+# Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026
+PASS blocked: writing-sops-the-playbooks-that-keep-ope (22 problems found)
+PASS blocked: building-and-structuring-a-property-mana (28 problems found)
+PASS blocked: managing-hoas-and-owners-associations-be (13 problems found)
+
+339 checks, ALL PASSED

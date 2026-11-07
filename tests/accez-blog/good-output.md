@@ -11,7 +11,7 @@ excerptAr: "إن تبني الاستدامة وكفاءة الطاقة في ال
 date: "2026-10-28"
 author: "Accez Team"
 authorAr: "فريق أكسيز"
-coverImage: "/images/blog/sustainability-and-energy-efficiency-cutting-costs-while.jpg"
+coverImage: "/images/blog/sustainability-and-energy-efficiency-cutting-costs.jpg"
 coverImageAlt: "A field of green grass with wind turbines in the background"
 coverImageCredit: "Photo by Zac \"Z\" Wolff on Unsplash"
 coverImageCreditUrl: "https://unsplash.com/photos/a-field-baXCV2qg9Ew"

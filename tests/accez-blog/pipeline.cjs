@@ -103,8 +103,13 @@ function runPipeline(workflowFile, opts) {
   set('Combine English and Arabic', runCode(code('Combine English and Arabic'), { input: nodes[llmAr.name], nodes }));
   result.combined = nodes['Combine English and Arabic'][0].json;
 
+  // ---- covers already used on the site (/blog/covers.json; on failure the HTTP node outputs { error }) ----
+  expectNext(wf, 'Combine English and Arabic', 'Read Used Cover Photos');
+  set('Read Used Cover Photos', [{ json: opts.usedCovers === 'error' ? { error: { message: '404' } } : (opts.usedCovers || { ids: [] }) }]);
+  result.usedCoversUrl = node('Read Used Cover Photos').parameters.url;
+
   // ---- Unsplash search + "Has Unsplash Results?" ----
-  expectNext(wf, 'Combine English and Arabic', 'Search Unsplash');
+  expectNext(wf, 'Read Used Cover Photos', 'Search Unsplash');
   result.searchQuery = evalExpr(node('Search Unsplash').parameters.queryParameters.parameters[0].value, { nodes });
   set('Search Unsplash', [{ json: opts.unsplash || { results: [] } }]);
   const hasRes = node('Has Unsplash Results?').parameters.conditions.conditions[0];
@@ -146,6 +151,9 @@ function runPipeline(workflowFile, opts) {
       result.imageError = toPush.json.imageError;
     } else {
       set('Download Unsplash Image', [{ json: gate, binary: { data: {} } }]);
+      if (next(wf, 'Download Unsplash Image', 0).includes('Track Unsplash Download')) {
+        result.trackUrl = evalExpr(node('Track Unsplash Download').parameters.url, { json: gate, nodes });
+      }
       const img = node('Push Image to GitHub');
       result.imagePath = evalExpr(img.parameters.filePath, { json: gate, nodes });
       evalExpr(img.parameters.commitMessage, { json: gate, nodes });

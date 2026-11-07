@@ -18,7 +18,13 @@ let failures = 0;
 let count = 0;
 const ok = (cond, msg) => { count++; console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!cond) failures++; };
 const section = title => console.log('\n# ' + title);
-const UNSPLASH = { results: [{ urls: { regular: 'https://images.unsplash.com/photo-1' }, user: { name: 'Zac "Z" Wolff' }, links: { html: 'https://unsplash.com/photos/a-field-baXCV2qg9Ew' }, alt_description: 'a field of green grass with wind turbines in the background' }] };
+// Shaped like a real /search/photos result: id, size, raw and regular urls, download_location.
+const photo = (id, alt, extra = {}) => ({ id, width: 4000, height: 2667, likes: 10,
+  urls: { raw: 'https://images.unsplash.com/photo-' + id + '?ixid=x', regular: 'https://images.unsplash.com/photo-' + id + '?w=1080' },
+  user: { name: 'Photographer ' + id }, links: { html: 'https://unsplash.com/photos/some-photo-' + id, download_location: 'https://api.unsplash.com/photos/' + id + '/download?ixid=x' },
+  alt_description: alt, ...extra });
+const UNSPLASH = { results: [{ ...photo('baXCV2qg9Ew', 'a field of green grass with wind turbines in the background'), user: { name: 'Zac "Z" Wolff' },
+  links: { html: 'https://unsplash.com/photos/a-field-baXCV2qg9Ew', download_location: 'https://api.unsplash.com/photos/baXCV2qg9Ew/download?ixid=x' } }] };
 const run = extra => runPipeline(WF, { topic: TOPIC, en: S.en, ar: S.ar, unsplash: UNSPLASH, ...extra });
 
 const wf = JSON.parse(fs.readFileSync(WF, 'utf8'));
@@ -216,12 +222,12 @@ function siteParse(filePath, content) {
 }
 ok(r.gate.qualityPassed, 'good sample passes the gate: ' + r.gate.qualityReport);
 const pushed = r.pushed;
-ok(pushed && pushed.filePath === 'content/blog/sustainability-and-energy-efficiency-cutting-costs-while.md', 'pushed path ' + (pushed && pushed.filePath));
-ok(r.imagePath === 'public/images/blog/sustainability-and-energy-efficiency-cutting-costs-while.jpg', 'image path matches slug ' + r.imagePath);
+ok(pushed && pushed.filePath === 'content/blog/sustainability-and-energy-efficiency-cutting-costs.md', 'pushed path ' + (pushed && pushed.filePath));
+ok(r.imagePath === 'public/images/blog/sustainability-and-energy-efficiency-cutting-costs.jpg', 'image path matches slug ' + r.imagePath);
 const { post, all } = siteParse(pushed.filePath, pushed.fileContent);
 ok(post && all.length === 1, 'site parser (gray-matter + createBlogRepository) reads the file');
 ok(post.title === TOPIC, 'title keeps its colon: ' + post.title);
-ok(post.coverImage === '/images/blog/sustainability-and-energy-efficiency-cutting-costs-while.jpg', 'coverImage = pushed image path');
+ok(post.coverImage === '/images/blog/sustainability-and-energy-efficiency-cutting-costs.jpg', 'coverImage = pushed image path');
 ok(post.coverImageAlt === 'A field of green grass with wind turbines in the background', 'alt text describes the Unsplash photo');
 ok(post.coverImageCredit === 'Photo by Zac "Z" Wolff on Unsplash', 'credit with quotes survives YAML');
 ok(post.date === '2026-10-28' && post.author === 'Accez Team' && post.authorAr === 'فريق أكسيز' && post.category === 'Industry Insights', 'date/author (Accez Team)/category set by workflow');
@@ -237,7 +243,7 @@ ok(!/&lt;|```|^title:/m.test(htmlEn.html + htmlAr.html) && !/portal\.accez\.clou
 const lastLine = s => s.trim().split('\n').filter(Boolean).pop();
 ok(lastLine(post.content) === S.CLOSE_EN && lastLine(post.contentAr) === S.CLOSE_AR, 'each language ends with its closing line to the solution page');
 ok(/^coverImage:\s*"([^"]+)"/m.test(pushed.fileContent), 'optimize-blog-images.mjs regex still finds coverImage');
-ok(r.facebookMessage.includes('https://www.accez.cloud/blog/sustainability-and-energy-efficiency-cutting-costs-while/') && r.facebookMessage.includes(TOPIC), 'Facebook message: title + correct URL');
+ok(r.facebookMessage.includes('https://www.accez.cloud/blog/sustainability-and-energy-efficiency-cutting-costs/') && r.facebookMessage.includes(TOPIC), 'Facebook message: title + correct URL');
 ok(r.sheet.Status === 'used' && r.sheet.Topic === TOPIC && r.sheet['Date Used'] === '2026-10-28', 'sheet row marked used with the date');
 ok(r.output.status === 'Success' && r.output.facebook === 'Facebook post published' && r.output.indexNow === 'IndexNow notified', 'Output Success reports Facebook and IndexNow');
 const order = r.trace;
@@ -249,7 +255,7 @@ fs.writeFileSync(path.join(HERE, 'good-output.md'), pushed.fileContent);
 section('IndexNow request');
 const KEY_FILE = '/Users/ali/Desktop/AccezWebsite/public/02fc2248f8f1fe4d7046ca50e2e5622e.txt';
 const KEY = fs.existsSync(KEY_FILE) ? fs.readFileSync(KEY_FILE, 'utf8').trim() : '02fc2248f8f1fe4d7046ca50e2e5622e';
-const slug = 'sustainability-and-energy-efficiency-cutting-costs-while';
+const slug = 'sustainability-and-energy-efficiency-cutting-costs';
 ok(r.indexNow.method === 'POST' && r.indexNow.url === 'https://api.indexnow.org/indexnow', 'POST https://api.indexnow.org/indexnow');
 ok(JSON.stringify(r.indexNow.body) === JSON.stringify({ host: 'www.accez.cloud', key: KEY, keyLocation: 'https://www.accez.cloud/' + KEY + '.txt', urlList: ['https://www.accez.cloud/blog/' + slug + '/', 'https://www.accez.cloud/ar/blog/' + slug + '/'] }),
   'body: host, key from notes/indexnow-key.txt, keyLocation, EN + AR URLs with trailing slash');
@@ -265,7 +271,7 @@ for (const step of ['downloadError', 'pushError']) {
   ok(p2.coverImage === '/images/blog/pm-default.jpg' && !p2.coverImageCredit && /suburban houses/.test(p2.coverImageAlt) && !/^"/.test(x.imageError), step + ': default cover, no credit, readable error "' + x.imageError + '"');
 }
 const noImg = run({ unsplash: { results: [] }, fallbackUnsplash: { error: { message: 'rate limit' } } });
-ok(noImg.pushed && siteParse(noImg.pushed.filePath, noImg.pushed.fileContent).post.coverImage === '/images/blog/pm-default.jpg', 'no Unsplash result (fallback errored): default cover, still published');
+ok(!noImg.pushed && /no suitable cover photo/.test(noImg.gate.qualityReport) && /^needs review: /.test(noImg.sheet.Status), 'no suitable photo after both searches: nothing published with the shared placeholder, row marked needs review');
 const errSearch = run({ unsplash: { error: { message: '500' } }, fallbackUnsplash: UNSPLASH });
 ok(errSearch.gate.hasImage === true, 'Unsplash search error -> fallback search used (no IF type error)');
 const fbErr = run({ facebookError: true });
@@ -403,6 +409,101 @@ for (const t of topics) {
 }
 const none = (() => { try { runCode(code('Find First Pending Topic'), { input: [{ json: { Topic: 'x', Status: 'used' } }] }); return false; } catch (e) { return /No pending topics/.test(e.message); } })();
 ok(none, 'no pending topic -> error (run stops instead of calling Gemini with nothing)');
+
+// =====================================================================
+section('Cover photo choice (Nov 2026: a title search returned a scripture page)');
+const withQuery = (q) => S.en.replace(/^tags: (.*)$/m, (l) => l + '\nimageQuery: "' + q + '"');
+const qr = run({ en: withQuery('checklist notebook pen') });
+ok(qr.searchQuery === 'checklist notebook pen', 'Unsplash is searched with Gemini\'s concrete photo subject, not the title: ' + qr.searchQuery);
+ok(!/imageQuery/.test(qr.pushed.fileContent), 'imageQuery is not published in the post');
+ok(r.searchQuery === r.combined.searchQuery, 'no imageQuery from Gemini: falls back to the tag words (' + r.searchQuery + ')');
+const bible = photo('bibleAAAAAA', 'a close up of a page of a bible', { tags: [{ title: 'scripture' }] });
+const notebook = photo('noteBBBBBBB', 'a hand writing a checklist in a notebook with a pen');
+const pickRun = run({ en: withQuery('checklist notebook pen'), unsplash: { results: [bible, notebook] } });
+ok(pickRun.gate.hasImage && pickRun.gate.photoId === 'noteBBBBBBB', 'first result is a scripture page: skipped, the checklist photo is used');
+ok(pickRun.gate.imageUrl === 'https://images.unsplash.com/photo-noteBBBBBBB?ixid=x&w=1600&q=80&fm=jpg&fit=crop', '1600 px JPEG from the raw url: ' + pickRun.gate.imageUrl);
+ok(pickRun.trackUrl === 'https://api.unsplash.com/photos/noteBBBBBBB/download?ixid=x', 'Unsplash download is reported (API rule): ' + pickRun.trackUrl);
+ok(/^A hand writing a checklist/.test(siteParse(pickRun.pushed.filePath, pickRun.pushed.fileContent).post.coverImageAlt), 'alt text describes the chosen photo');
+const office = photo('officeCCCCC', 'an empty office with desks and chairs');
+const ranked = run({ en: withQuery('checklist notebook pen'), unsplash: { results: [office, notebook] } });
+ok(ranked.gate.photoId === 'noteBBBBBBB', 'a photo matching the subject words beats the first result');
+const usedRun = run({ en: withQuery('checklist notebook pen'), unsplash: { results: [notebook, office] }, usedCovers: { ids: ['noteBBBBBBB'] } });
+ok(usedRun.gate.photoId === 'officeCCCCC', 'a photo another post already uses (from /blog/covers.json) is skipped');
+ok(usedRun.usedCoversUrl === 'https://www.accez.cloud/blog/covers.json', 'used covers read from the site: ' + usedRun.usedCoversUrl);
+const usedErr = run({ en: withQuery('checklist notebook pen'), unsplash: { results: [notebook] }, usedCovers: 'error' });
+ok(usedErr.gate.hasImage && usedErr.gate.qualityPassed, 'site list unavailable: the run continues and still picks a photo');
+const building = photo('buildDDDDDD', 'a modern apartment building with balconies');
+const fb = run({ unsplash: { results: [bible, photo('noDesc11111', '', { alt_description: null })] }, fallbackUnsplash: { results: [building] } });
+ok(fb.trace.includes('Search Unsplash Fallback') && fb.gate.photoId === 'buildDDDDDD', 'first search has only unsuitable photos: the safe fallback search is used');
+ok(evalExpr(byName('Search Unsplash Fallback').parameters.queryParameters.parameters[0].value, { nodes: fb.nodes }) === 'modern apartment building exterior', 'fallback subject for property topics: modern apartment building exterior');
+for (const [label, p] of [
+  ['wine', photo('wineEEEEEEE', 'two glasses of red wine on a table')], ['pork', photo('baconFFFFFF', 'bacon and eggs breakfast')],
+  ['portrait shape', photo('tallGGGGGGG', 'a checklist on a desk', { width: 2000, height: 3000 })], ['small file', photo('smallHHHHHH', 'a checklist on a desk', { width: 800, height: 600 })],
+  ['Unsplash+', photo('plusIIIIIII', 'a checklist on a desk', { premium: true })], ['no description', photo('nodescJJJJJ', '', { alt_description: null })],
+  ['brand logo', photo('logoKKKKKKK', 'a laptop showing a company logo')], ['church', photo('churchLLLLL', 'the inside of a church')]
+]) {
+  const x = run({ unsplash: { results: [p, notebook] } });
+  ok(x.gate.photoId === 'noteBBBBBBB', 'skipped: ' + label);
+}
+const searchParams = Object.fromEntries(byName('Search Unsplash').parameters.queryParameters.parameters.map(q => [q.name, q.value]));
+ok(searchParams.per_page === '20' && searchParams.content_filter === 'high' && searchParams.orientation === 'landscape', 'search: 20 results, safe content filter, landscape');
+ok(JSON.stringify(byName('Track Unsplash Download').credentials) === JSON.stringify(byName('Search Unsplash').credentials) && byName('Track Unsplash Download').onError === 'continueRegularOutput' && byName('Read Used Cover Photos').onError === 'continueRegularOutput',
+  'new steps reuse the Unsplash login and never stop the run');
+ok(/imageQuery/.test(r.prompt) && /never anything religious/.test(r.prompt), 'English prompt asks for a concrete, non-religious photo subject');
+
+// =====================================================================
+section('Each language stays in its own half');
+const arInEn = run({ en: S.en.replace('## Frequently Asked Questions', '## Frequently Asked Questions\n\n### كيف أعرف متى حان الوقت لتوظيف المزيد من موظفي إدارة العقارات؟') });
+ok(!arInEn.gate.qualityPassed && /English part contains Arabic text/.test(arInEn.gate.qualityReport), 'Arabic question in the English FAQ is blocked');
+const enHeadInAr = run({ ar: S.ar.replace('## الأسئلة الشائعة', '## الأسئلة الشائعة\n\n### How do I know when it is time to hire more staff?') });
+ok(!enHeadInAr.gate.qualityPassed && /heading that is not in Arabic/.test(enHeadInAr.gate.qualityReport), 'English heading in the Arabic half is blocked');
+const enLineInAr = run({ ar: S.ar.replace('## أبرز النقاط', '*This article is general information for property operators and is not legal advice.*\n\n## أبرز النقاط') });
+ok(!enLineInAr.gate.qualityPassed && /line in English/.test(enLineInAr.gate.qualityReport), 'English disclaimer in the Arabic half is blocked');
+const allInOne = run({ en: S.en.replace(/^(- \*\*[^\n]*)$/m, '$1 Accez is an all-in-one platform.') });
+ok(!allInOne.gate.qualityPassed && /all-in-one/i.test(allInOne.gate.qualityReport), '"all-in-one" about Accez is blocked');
+ok(/never call them hotels/.test(r.prompt) && /personal trainers/.test(r.prompt), 'prompt: serviced apartments (not hotels); providers include personal trainers');
+ok(/Never leave an English heading/.test(r.promptAr), 'Arabic prompt: every heading and sentence in Arabic');
+
+// =====================================================================
+section('Addresses never end on a dangling word');
+for (const [t, want] of [
+  ['Building and Structuring a Property Management Team as You Grow', 'building-and-structuring-a-property-management-team'],
+  ['Writing SOPs: The Playbooks That Keep Operations Consistent at Scale', 'writing-sops-the-playbooks-that-keep-operations-consistent'],
+  ['Managing HOAs and Owners Associations: Beyond Single-Unit Rentals', 'managing-hoas-and-owners-associations-beyond-single-unit'],
+  ['Sustainability and Energy Efficiency: Cutting Costs While Going Green', 'sustainability-and-energy-efficiency-cutting-costs'],
+  ['Short Topic Under Sixty Characters Ends With And', 'short-topic-under-sixty-characters-ends-with-and']
+]) {
+  const s = runCode(code('Find First Pending Topic'), { input: [{ json: { row_number: 2, Topic: t, Status: 'pending' } }] })[0].json.topicSlug;
+  ok(s === want, 'slug for "' + t + '" = ' + s);
+}
+
+// =====================================================================
+section('Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026');
+// Each live post split back into the two Gemini answers it came from, then run
+// through this workflow. Every one must be stopped for review, for the right reasons.
+const RED = path.join(HERE, 'fixtures/redteam');
+const splitPost = text => {
+  const m = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  const lines = m[1].split('\n');
+  const pick = re => lines.filter(l => re.test(l)).join('\n');
+  const [enBody, arBody] = m[2].split('<!-- AR -->');
+  return {
+    title: (m[1].match(/^title: "(.*)"$/m) || [])[1],
+    en: '---\n' + pick(/^(title|metaTitle|metaDescription|primaryKeyword|excerpt|tags):/) + '\n---\n\n' + enBody.trim() + '\n',
+    ar: '---\n' + pick(/^(titleAr|metaTitleAr|metaDescriptionAr|excerptAr|tagsAr):/) + '\n---\n\n' + arBody.trim() + '\n'
+  };
+};
+const RED_EXPECT = {
+  'writing-sops-the-playbooks-that-keep-operations-consistent-a.md': [/400\+/, /e-?sign/i, /study or research|percentage/, /77%/, /portal\.accez\.cloud/, /template heading/, /dash/, /line in English/],
+  'building-and-structuring-a-property-management-team-as-you-g.md': [/400\+|400 channels/i, /percentage/, /English part contains Arabic text/, /heading that is not in Arabic/, /all-in-one/, /التوقيع الإلكتروني/, /portal\.accez\.cloud/],
+  'managing-hoas-and-owners-associations-beyond-single-unit-ren.md': [/e-?sign/i, /77%/, /study or research/, /portal\.accez\.cloud/, /does not end with a closing line/]
+};
+for (const [file, expect] of Object.entries(RED_EXPECT)) {
+  const post = splitPost(fs.readFileSync(path.join(RED, file), 'utf8'));
+  const x = run({ topic: post.title, en: post.en, ar: post.ar, unsplash: { results: [notebook] } });
+  const missing = expect.filter(re => !re.test(x.gate.qualityReport));
+  ok(!x.gate.qualityPassed && !x.pushed && missing.length === 0, 'blocked: ' + file.slice(0, 40) + (missing.length ? ' MISSING ' + missing.join(' ') + ' in ' + x.gate.qualityReport : ' (' + x.gate.qualityIssues.length + ' problems found)'));
+}
 
 await server.close();
 console.log('\n' + count + ' checks, ' + (failures ? failures + ' FAILED' : 'ALL PASSED'));
