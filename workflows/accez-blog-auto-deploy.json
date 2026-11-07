@@ -449,7 +449,7 @@
     },
     {
       "parameters": {
-        "content": "## 1. Schedule\nSunday and Wednesday at 09:00 (Asia/Riyadh, set in the workflow settings). One trigger only.",
+        "content": "## 1. Schedule\nEvery 2 days at 10:00 (Asia/Riyadh, set in the workflow settings). n8n counts the 2 days from the last run. One trigger only.",
         "width": 280,
         "color": 4,
         "height": 180
@@ -733,7 +733,7 @@
     },
     {
       "id": "schedule-trigger",
-      "name": "Schedule Sun and Wed at 09:00",
+      "name": "Schedule Every 2 Days at 10:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
@@ -744,13 +744,9 @@
         "rule": {
           "interval": [
             {
-              "field": "weeks",
-              "weeksInterval": 1,
-              "triggerAtDay": [
-                0,
-                3
-              ],
-              "triggerAtHour": 9,
+              "field": "days",
+              "daysInterval": 2,
+              "triggerAtHour": 10,
               "triggerAtMinute": 0
             }
           ]
@@ -1484,17 +1480,6 @@
         ]
       ]
     },
-    "Schedule Sun and Wed at 09:00": {
-      "main": [
-        [
-          {
-            "node": "Read Topics from Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Generate English Post with Gemini": {
       "main": [
         [
@@ -1712,6 +1697,17 @@
         [
           {
             "node": "Search Unsplash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Every 2 Days at 10:00": {
+      "main": [
+        [
+          {
+            "node": "Read Topics from Google Sheets",
             "type": "main",
             "index": 0
           }

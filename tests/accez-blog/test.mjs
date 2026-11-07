@@ -43,7 +43,7 @@ for (const [from, c] of Object.entries(wf.connections)) {
 }
 ok(badConn.length === 0, 'every connection references existing nodes ' + badConn.join(', '));
 const RENAMED = {
-  'Schedule Every 2 Days at 09:00': 'Schedule Sun and Wed at 09:00',
+  'Schedule Every 2 Days at 09:00': 'Schedule Every 2 Days at 10:00',
   'Generate Blog Post with Gemini': 'Generate English Post with Gemini',
   'Strip Fences and Base64 Encode': 'Combine English and Arabic'
 };
@@ -150,20 +150,25 @@ const aiTargets = Object.fromEntries(Object.entries(wf.connections).filter(([, c
 ok(aiTargets['Google Gemini Chat Model'] === 'Generate English Post with Gemini' && aiTargets['Google Gemini Chat Model (Arabic)'] === 'Generate Arabic Post with Gemini', 'each chain has its own model sub-node');
 
 // =====================================================================
-section('Schedule: Sunday and Wednesday 09:00 Asia/Riyadh, one trigger');
+section('Schedule: every 2 days at 10:00 Asia/Riyadh, one trigger');
 const triggers = wf.nodes.filter(n => n.type === 'n8n-nodes-base.scheduleTrigger');
-ok(triggers.length === 1, 'exactly one schedule trigger');
+ok(triggers.length === 1 && triggers[0].name === 'Schedule Every 2 Days at 10:00', 'exactly one schedule trigger: ' + triggers[0].name);
 const rule = triggers[0].parameters.rule.interval;
-ok(rule.length === 1 && rule[0].field === 'weeks' && rule[0].weeksInterval === 1, 'one weekly rule, every week (no every-N-days recurrence check)');
-ok(JSON.stringify([...rule[0].triggerAtDay].sort()) === '[0,3]', 'weekdays Sunday (0) and Wednesday (3)');
-ok(rule[0].triggerAtHour === 9 && rule[0].triggerAtMinute === 0, 'at 09:00 (minute set explicitly, otherwise n8n picks a random minute)');
+ok(rule.length === 1 && rule[0].field === 'days' && rule[0].daysInterval === 2, 'one rule: every 2 days');
+ok(rule[0].triggerAtHour === 10 && rule[0].triggerAtMinute === 0, 'at 10:00 (minute set explicitly, otherwise n8n picks a random minute)');
 ok(wf.settings.timezone === 'Asia/Riyadh', 'workflow timezone Asia/Riyadh');
-// Same cron n8n builds for this rule (ScheduleTrigger GenericFunctions.toCronExpression): "<s> 0 9 * * 0,3"
-const cron = `0 ${rule[0].triggerAtMinute} ${rule[0].triggerAtHour} * * ${rule[0].triggerAtDay.join(',')}`;
-ok(/^0 0 9 \* \* (0,3|3,0)$/.test(cron), 'cron ' + cron + ' fires Sunday and Wednesday 09:00');
-const fires = []; // next two weeks of fire times, computed from the cron fields
-for (let d = 0; d < 14; d++) { const day = new Date(Date.UTC(2026, 10, 1 + d)); if (rule[0].triggerAtDay.includes(day.getUTCDay())) fires.push(day.toISOString().slice(0, 10)); }
-ok(fires.join(',') === '2026-11-01,2026-11-04,2026-11-08,2026-11-11', 'runs on ' + fires.join(', ') + ' (2 posts a week)');
+// n8n fires the cron every day at 10:00 and its recurrenceCheck (ScheduleTrigger
+// GenericFunctions.ts, typeInterval "days") only lets a run through when 2 or more
+// days have passed since the last one. Same arithmetic, over month and year ends:
+const fires = [];
+let last;
+for (let d = 0; d < 70; d++) {
+  const day = new Date(Date.UTC(2026, 10, 7 + d));
+  const doy = Math.round((day - Date.UTC(day.getUTCFullYear(), 0, 0)) / 86400000);
+  if (last === undefined || (doy - last + 365) % 365 >= rule[0].daysInterval) { last = doy; fires.push(day.toISOString().slice(0, 10)); }
+}
+const gaps = fires.slice(1).map((f, i) => (Date.parse(f) - Date.parse(fires[i])) / 86400000);
+ok(gaps.every(g => g === 2), 'runs every 2 days with no double run at month or year end: ' + fires.slice(10, 15).join(', ') + ' ... ' + fires.slice(-6).join(', '));
 
 // =====================================================================
 section('Two Gemini calls with mocked outputs');

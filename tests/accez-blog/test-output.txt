@@ -40,7 +40,7 @@ PASS credentials block unchanged on "Search Unsplash Fallback"
 PASS kept node "Post Blog to Facebook Page" with id 6d09292e-24fb-4bdb-9539-a7929b0174b8
 PASS credentials block unchanged on "Post Blog to Facebook Page"
 PASS kept node "Build Facebook Message" with id b8bbbf95-b7d7-4803-94ba-e9eab756a5dd
-PASS kept node "Schedule Sun and Wed at 09:00" with id schedule-trigger
+PASS kept node "Schedule Every 2 Days at 10:00" with id schedule-trigger
 PASS no new credentials: every credential (type, id, name) is one the original already used
 PASS every $('Node') reference exists and runs earlier 
 PASS no disconnected nodes 
@@ -105,7 +105,7 @@ PASS parameters of "Has Unsplash Results?" (if v2.2) are valid
 PASS parameters of "Search Unsplash Fallback" (httpRequest v4.2) are valid
 PASS parameters of "Post Blog to Facebook Page" (httpRequest v4.2) are valid
 PASS parameters of "Build Facebook Message" (set v3.4) are valid
-PASS parameters of "Schedule Sun and Wed at 09:00" (scheduleTrigger v1.3) are valid
+PASS parameters of "Schedule Every 2 Days at 10:00" (scheduleTrigger v1.3) are valid
 PASS parameters of "List Existing Blog Posts" (github v1.1) are valid
 PASS parameters of "Collect Existing Posts" (code v2) are valid
 PASS parameters of "If Duplicate Topic" (if v2.2) are valid
@@ -147,14 +147,12 @@ PASS both Gemini model nodes use the existing Gemini credential
 PASS no output cap on either model (options {} = model default; the node only applies its 1024-token default when "options" is missing)
 PASS each chain has its own model sub-node
 
-# Schedule: Sunday and Wednesday 09:00 Asia/Riyadh, one trigger
-PASS exactly one schedule trigger
-PASS one weekly rule, every week (no every-N-days recurrence check)
-PASS weekdays Sunday (0) and Wednesday (3)
-PASS at 09:00 (minute set explicitly, otherwise n8n picks a random minute)
+# Schedule: every 2 days at 10:00 Asia/Riyadh, one trigger
+PASS exactly one schedule trigger: Schedule Every 2 Days at 10:00
+PASS one rule: every 2 days
+PASS at 10:00 (minute set explicitly, otherwise n8n picks a random minute)
 PASS workflow timezone Asia/Riyadh
-PASS cron 0 0 9 * * 0,3 fires Sunday and Wednesday 09:00
-PASS runs on 2026-11-01, 2026-11-04, 2026-11-08, 2026-11-11 (2 posts a week)
+PASS runs every 2 days with no double run at month or year end: 2026-11-27, 2026-11-29, 2026-12-01, 2026-12-03, 2026-12-05 ... 2027-01-04, 2027-01-06, 2027-01-08, 2027-01-10, 2027-01-12, 2027-01-14
 
 # Two Gemini calls with mocked outputs
 PASS English call first, then the Arabic call
@@ -376,4 +374,4 @@ PASS blocked: writing-sops-the-playbooks-that-keep-ope (22 problems found)
 PASS blocked: building-and-structuring-a-property-mana (28 problems found)
 PASS blocked: managing-hoas-and-owners-associations-be (13 problems found)
 
-339 checks, ALL PASSED
+337 checks, ALL PASSED
