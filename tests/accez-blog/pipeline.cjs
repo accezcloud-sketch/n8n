@@ -108,9 +108,14 @@ function runPipeline(workflowFile, opts) {
     // ---- write, check, and rewrite until it passes or is skipped ----
     let writeInput = plan;
     let skipped = false;
+    let arabicOnlyNext = false;
     for (let attempt = 0; attempt < 10; attempt++) {
       const answer = nextAnswer();
       const llmEn = node('Generate English Post with Gemini');
+      let arInput;
+      if (arabicOnlyNext) {
+        arInput = writeInput; // "Arabic Only?" sends Decide Retry's item straight to the Arabic step
+      } else {
       const promptEn = evalExpr(llmEn.parameters.text, { json: writeInput, nodes });
       geminiCalls.push({ node: llmEn.name, prompt: promptEn });
       result.prompts.push(promptEn);
@@ -118,10 +123,11 @@ function runPipeline(workflowFile, opts) {
       set(llmEn.name, [{ json: { text: answer.en } }]);
       expectNext(wf, llmEn.name, 'Check English Draft');
       exec('Check English Draft', nodes[llmEn.name]);
-
       expectNext(wf, 'Check English Draft', 'Generate Arabic Post with Gemini');
+      arInput = nodes['Check English Draft'][0].json;
+      }
       const llmAr = node('Generate Arabic Post with Gemini');
-      const promptAr = evalExpr(llmAr.parameters.text, { json: nodes['Check English Draft'][0].json, nodes });
+      const promptAr = evalExpr(llmAr.parameters.text, { json: arInput, nodes });
       geminiCalls.push({ node: llmAr.name, prompt: promptAr });
       result.promptsAr.push(promptAr);
       if (!result.promptAr) result.promptAr = promptAr;
@@ -165,7 +171,11 @@ function runPipeline(workflowFile, opts) {
       // An IF node's true output (what $('Retry Writing?').first(0) reads): the item, or nothing.
       set('Retry Writing?', retryOut === 0 ? [{ json: decision }] : []);
       if (retryOut === 0) {
-        expectNext(wf, 'Retry Writing?', 'Generate English Post with Gemini', 0);
+        expectNext(wf, 'Retry Writing?', 'Arabic Only?', 0);
+        const aoOut = ifOutput(node('Arabic Only?'), decision, nodes);
+        set('Arabic Only?', [{ json: decision }]);
+        arabicOnlyNext = aoOut === 0;
+        expectNext(wf, 'Arabic Only?', arabicOnlyNext ? 'Generate Arabic Post with Gemini' : 'Generate English Post with Gemini', aoOut);
         writeInput = decision;
         continue;
       }

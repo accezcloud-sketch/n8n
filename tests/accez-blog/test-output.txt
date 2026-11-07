@@ -130,6 +130,7 @@ PASS parameters of "Read Used Cover Photos" (httpRequest v4.2) are valid
 PASS parameters of "Track Unsplash Download" (httpRequest v4.2) are valid
 PASS parameters of "Decide Retry" (code v2) are valid
 PASS parameters of "Retry Writing?" (if v2.2) are valid
+PASS parameters of "Arabic Only?" (if v2.2) are valid
 PASS GitHub file:list = resource "file", operation "list", folder in "filePath" (the "Path" field; no returnAll for file:list)
 PASS GitHub listing is optional (continue on fail, always outputs)
 PASS Push Blog Post to GitHub: file create (default operation) with content and commit message
@@ -171,8 +172,8 @@ PASS Arabic prompt asks for the closing line to /ar/solutions/property-managers/
 PASS combined frontmatter has the English fields (call 1) and Arabic fields (call 2)
 PASS combined body: English, one <!-- AR --> marker, Arabic
 PASS Arabic links to site pages get the /ar prefix
-PASS empty English answer: no red run; Gemini is asked again, then the topic is skipped 
-PASS empty Arabic answer: no red run; Gemini is asked again, then the topic is skipped 
+PASS empty English answer: no red run; Gemini is asked again (whole post), then the topic is skipped 
+PASS empty Arabic answer: no red run; Gemini is asked again (Arabic only), then the topic is skipped 
 PASS Arabic answer with "title:" instead of "titleAr:" still fills the Arabic fields, English title kept
 PASS Arabic answer that repeats the English article before <!-- AR --> is cleaned
 PASS Arabic text the English call added after a marker is ignored
@@ -211,7 +212,7 @@ PASS IndexNow failure: reported, run still succeeds, Facebook still posted
 # Image, GitHub and Facebook failures
 PASS downloadError: Accez default cover, no credit, readable error "timeout"
 PASS pushError: Accez default cover, no credit, readable error "sha missing"
-PASS Unsplash gives nothing on all 3 attempts: published on the last attempt with the Accez default cover (not lost)
+PASS Unsplash gives nothing: published at once with the Accez default cover (no rewrite, no extra cost)
 PASS the default cover exists on the website (jpg and webp)
 PASS Unsplash search error -> fallback search used (no IF type error)
 PASS Facebook failure reported, sheet already marked used
@@ -236,6 +237,11 @@ PASS fixed directly: tenants book providers via Accez (removed a claim Accez doe
 PASS fixed directly: figure about Accez (removed an unsourced statistic)
 PASS fixed directly: raw HTML (removed raw HTML tags)
 PASS fixed directly: vague link text (unlinked vague link text)
+PASS fixed directly: template heading "What High Performers Do Differently" (renamed a template heading)
+PASS fixed directly: template heading "What Breaks and Why" (renamed a template heading)
+PASS fixed directly: template heading "A Deep Dive into ..." (renamed a template heading)
+PASS fixed directly: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" (renamed a template heading)
+PASS fixed directly: Arabic template heading "ما الذي يتعطل ولماذا" (renamed a template heading)
 PASS fixed directly: generic heading "Conclusion" (removed a generic heading)
 PASS fixed directly: ends with "Visit portal.accez.cloud" instead of the solution link (removed a portal.accez.cloud mention)
 PASS fixed directly: closing line links the wrong solution page ()
@@ -260,15 +266,10 @@ PASS fixed directly: Arabic: Accez claims WhatsApp (removed a claim Accez does n
 PASS fixed directly: Arabic: Accez claims e-signing (removed a claim Accez does not make)
 PASS fixed directly: Arabic: Accez claims mada (removed a claim Accez does not make)
 
-# Needs a new draft: rewritten 3 times, then the topic is skipped and the next one written
-PASS rewrite, then skipped: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic FAQ heading is not exactly "## الأسئلة الش
-PASS rewrite, then skipped: Arabic cut off (no closing line) -> Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading is not exactly "## أ
-PASS rewrite, then skipped: English cut off (no closing line) -> English "## Key Takeaways" heading is missing (the output may be cut off)
-PASS rewrite, then skipped: template heading "What High Performers Do Differently" -> uses a template heading instead of one that describes the section: "What High Performers Do Different
-PASS rewrite, then skipped: template heading "What Breaks and Why" -> uses a template heading instead of one that describes the section: "The Hidden Costs: What Breaks and
-PASS rewrite, then skipped: template heading "A Deep Dive into ..." -> uses a template heading instead of one that describes the section: "A Deep Dive into Energy Waste"
-PASS rewrite, then skipped: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> uses a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل
-PASS rewrite, then skipped: Arabic template heading "ما الذي يتعطل ولماذا" -> uses a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
+# Needs a new draft (only what code cannot fix): rewritten 3 times, then the topic is skipped and the next one written
+PASS rewrite (Arabic only, 1 call each), then skipped: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic FAQ heading is not exa
+PASS rewrite (Arabic only, 1 call each), then skipped: Arabic cut off (no closing line) -> Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading 
+PASS rewrite (whole post), then skipped: English cut off (no closing line) -> English "## Key Takeaways" heading is missing (the output may be cut off)
 PASS allowed: ZATCA discussed in general 
 PASS allowed: mada and WhatsApp discussed in general 
 PASS allowed: Arabic: Ejar discussed in general 
@@ -319,7 +320,7 @@ PASS topics with no signal get varied formats (explainer, how-to, comparison, ch
 
 # Sheet status values: plain text in the existing status column
 PASS "used" written as text to Status (no new columns): used
-PASS "skipped" written as text to Status (no new columns): skipped: uses a template heading instead of one th
+PASS "skipped" written as text to Status (no new columns): skipped: English "## Key Takeaways" heading is mis
 PASS "duplicate" written as text to Status (no new columns): duplicate: preventive-maintenance-how-to-stop-smal
 
 # Slug cutter
@@ -361,9 +362,9 @@ PASS new steps reuse the Unsplash login and never stop the run
 PASS English prompt asks for a concrete, non-religious photo subject
 
 # Each language stays in its own half
-PASS Arabic question and answer in the English FAQ: needs a new draft (rewritten, then skipped)
+PASS Arabic question and answer in the English FAQ: removed by code, post published
 PASS an Arabic term inside an English sentence is allowed 
-PASS English question in the Arabic FAQ: needs a new draft
+PASS English question in the Arabic FAQ: question and its answer removed by code, post published
 PASS English disclaimer in the Arabic half: replaced by the Arabic one, published
 PASS "all-in-one" about Accez: the sentence is removed, published
 PASS prompt: serviced apartments (not hotels); providers include personal trainers
@@ -402,9 +403,9 @@ PASS Arabic Ejar integration claim removed, post published
 PASS English prompt explains how Ejar may be mentioned in the Accez section
 
 # Red team: the three posts the old workflow published on 3, 5 and 7 Nov 2026
-PASS red team writing-sops-the-playbooks-that-keep-ope: fixed by code [7], left for a rewrite: 4
-PASS red team building-and-structuring-a-property-mana: fixed by code [6], left for a rewrite: 16
-PASS red team managing-hoas-and-owners-associations-be: fixed by code [5], left for a rewrite: 1
+PASS red team writing-sops-the-playbooks-that-keep-ope: published on the first attempt, 8 kinds of fixes
+PASS red team building-and-structuring-a-property-mana: published on the first attempt, 8 kinds of fixes
+PASS red team managing-hoas-and-owners-associations-be: published on the first attempt, 6 kinds of fixes
 
 # Red team: worst-case drafts against the fixes
 PASS a draft with 20 fixable problems at once is published on the first attempt (14 fixes) 
@@ -420,7 +421,22 @@ PASS bullets inside a quote ("> - item") are not treated as dashes
 PASS an Arabic heading that simply says "differently" is not a template heading
 PASS "all in one place" in the Accez section is kept (only "all-in-one platform" is a claim)
 PASS official Saudi tax rates (VAT 15%, real estate transactions tax 5%) are kept
+PASS a topic written in Arabic: the address comes from the English title (content/blog/sustainability-and-energy-efficiency-cutting-costs.md)
+PASS missing keyword and tags, too short description: filled from the title and the opening paragraph, no rewrite
+PASS title over 110 characters: cut on a whole word, no rewrite
+PASS only the Arabic half is broken: only the Arabic step is asked again (1 call, not 2), then published
+PASS heading "Navigating Saudi Arabia's Property Landscape" becomes "The Property Market in Saudi Arabia"
+PASS heading "Navigating the Saudi STR Licensing Landscape: Vision 2030 and Beyond" becomes "STR Licensing in Saudi Arabia: Vision 2030 and Beyond"
+PASS heading "Navigating the Saudi Arabian Vacation Rental Landscape with Precision" becomes "The Vacation Rental Market in Saudi Arabia"
+PASS heading "What High Performers Do Differently" becomes "How High Performers Work"
+PASS heading "Navigating Saudi Arabia's Digital Property Landscape Securely" becomes "The Digital Property Market in Saudi Arabia"
+PASS heading "Navigating Saudi Arabia's Property Landscape with Accez.Cloud" becomes "The Property Market in Saudi Arabia"
+PASS heading "Navigating the New Landscape of Tenant Data Protection" becomes "Tenant Data Protection Today"
+PASS heading "Navigating Saudi Arabia's Dynamic Property Landscape" becomes "The Property Market in Saudi Arabia"
+PASS heading "Saudi Arabia: Navigating a Unique Market Landscape" becomes "Saudi Arabia: How the Market Works"
+PASS heading "Navigating Saudi Arabia's Property Operations Landscape with RBAC" becomes "The Property Operations Market in Saudi Arabia"
+PASS Arabic template heading becomes "ممارسات ذوي الأداء العالي" (correct grammar)
 PASS Gemini returns a refusal or garbage: asked again, then skipped; no red run
 PASS every pending topic fails: each is skipped and the run ends quietly (no red run)
 
-378 checks, ALL PASSED
+394 checks, ALL PASSED

@@ -194,7 +194,7 @@ for (const [label, en, ar] of [['English', '  ', S.ar], ['Arabic', S.en, '']]) {
   let msg = '';
   let x = null;
   try { x = run({ en, ar }); } catch (e) { msg = e.message; }
-  ok(!msg && x && !x.pushed && /^skipped: /.test(x.sheet.Status) && x.prompts.length >= 3, 'empty ' + label + ' answer: no red run; Gemini is asked again, then the topic is skipped ' + msg.slice(0, 60));
+  ok(!msg && x && !x.pushed && /^skipped: /.test(x.sheet.Status) && (label === 'English' ? x.prompts.length >= 3 : x.promptsAr.length >= 3 && x.prompts.length === 2), 'empty ' + label + ' answer: no red run; Gemini is asked again (' + (label === 'English' ? 'whole post' : 'Arabic only') + '), then the topic is skipped ' + msg.slice(0, 60));
 }
 const noSuffix = S.ar.replace(/^(title|metaTitle|metaDescription|excerpt|tags)Ar:/gm, '$1:');
 const ns = run({ ar: noSuffix });
@@ -277,8 +277,8 @@ for (const step of ['downloadError', 'pushError']) {
   ok(p2.coverImage === '/images/blog/accez-default-cover.jpg' && !p2.coverImageCredit && /Accez logo/.test(p2.coverImageAlt) && !/^"/.test(x.imageError), step + ': Accez default cover, no credit, readable error "' + x.imageError + '"');
 }
 const noImg = run({ unsplash: { results: [] }, fallbackUnsplash: { error: { message: 'rate limit' } } });
-ok(noImg.pushed && noImg.prompts.length === 3 && noImg.sheet.Status === 'used' && siteParse(noImg.pushed.filePath, noImg.pushed.fileContent).post.coverImage === '/images/blog/accez-default-cover.jpg',
-  'Unsplash gives nothing on all 3 attempts: published on the last attempt with the Accez default cover (not lost)');
+ok(noImg.pushed && noImg.prompts.length === 1 && noImg.sheet.Status === 'used' && siteParse(noImg.pushed.filePath, noImg.pushed.fileContent).post.coverImage === '/images/blog/accez-default-cover.jpg',
+  'Unsplash gives nothing: published at once with the Accez default cover (no rewrite, no extra cost)');
 ok(fs.existsSync(path.join(REPO, 'public/images/blog/accez-default-cover.jpg')) && fs.existsSync(path.join(REPO, 'public/images/blog/accez-default-cover.webp')), 'the default cover exists on the website (jpg and webp)');
 const errSearch = run({ unsplash: { error: { message: '500' } }, fallbackUnsplash: UNSPLASH });
 ok(errSearch.gate.hasImage === true, 'Unsplash search error -> fallback search used (no IF type error)');
@@ -302,9 +302,7 @@ ok(qp && qp.title === 'The "Green" Lease: Cutting Costs \\ Going Green' && qp.ti
 // =====================================================================
 section('Fixed directly, no rewrite: each problem is corrected by code and the post is published');
 const lastOf = s => s.trim().split('\n').filter(l => l.trim()).pop();
-const REWRITE = ['no Arabic part', 'Arabic cut off (no closing line)', 'English cut off (no closing line)',
-  'template heading "What High Performers Do Differently"', 'template heading "What Breaks and Why"', 'template heading "A Deep Dive into ..."',
-  'Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف"', 'Arabic template heading "ما الذي يتعطل ولماذا"'];
+const REWRITE = ['no Arabic part', 'Arabic cut off (no closing line)', 'English cut off (no closing line)'];
 const GONE = {
   '400+ channels': /400/, '77% statistic': /77%/, 'unlinked study': /recent study/, 'unlinked percentage': /23%/, 'em dash': /[—–]/,
   'spaced hyphen in title': /Sustainability - /, 'metaTitle too long': /metaTitle: "Sustainability and Energy Efficiency for Saudi Property Managers in 2026"/,
@@ -318,7 +316,9 @@ const GONE = {
   'Accez claims automatic reminders': /automatic rent reminders/, 'Accez claims minimum stay rules': /minimum stay rules per unit/, 'Accez claims inspection checklists': /inspection checklists make/,
   'Accez claims visitor management': /visitor management for gated/, 'Accez claims Ejar integration': /registers every lease with Ejar/, 'Accez claims a booking engine': /booking website builder/,
   'Accez claims a vendor directory': /vendor directory of approved/, 'Accez claims smart locks': /smart locks for keyless/, 'Accez claims AI features': /uses AI to predict/,
-  'Arabic: Accez claims WhatsApp': /واتساب لمراسلة/, 'Arabic: Accez claims e-signing': /التوقيع الإلكتروني لعقود/, 'Arabic: Accez claims mada': /مدى وأبل باي/
+  'Arabic: Accez claims WhatsApp': /واتساب لمراسلة/, 'Arabic: Accez claims e-signing': /التوقيع الإلكتروني لعقود/, 'Arabic: Accez claims mada': /مدى وأبل باي/,
+  'template heading "What High Performers Do Differently"': /Do Differently/, 'template heading "What Breaks and Why"': /What Breaks/, 'template heading "A Deep Dive into ..."': /Deep Dive/,
+  'Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف"': /يفعله أصحاب الأداء العالي بشكل مختلف/, 'Arabic template heading "ما الذي يتعطل ولماذا"': /ما الذي يتعطل ولماذا/
 };
 for (const [label, v] of Object.entries(S.bad).filter(([k]) => !REWRITE.includes(k))) {
   const b = run({ en: v.en, ar: v.ar });
@@ -328,12 +328,14 @@ for (const [label, v] of Object.entries(S.bad).filter(([k]) => !REWRITE.includes
   ok(b.pushed && b.prompts.length === 1 && b.gate.qualityPassed && gone && post && post.metaTitle.length <= 60,
     'fixed directly: ' + label + (b.pushed ? ' (' + (b.gate.autoFixes || []).join(', ').slice(0, 90) + ')' : ' NOT PUBLISHED ' + (b.gate.qualityReport || '').slice(0, 150)));
 }
-section('Needs a new draft: rewritten 3 times, then the topic is skipped and the next one written');
+section('Needs a new draft (only what code cannot fix): rewritten 3 times, then the topic is skipped and the next one written');
 for (const label of REWRITE) {
   const v = S.bad[label];
   const b = run({ en: v.en, ar: v.ar });
-  ok(!b.gate.qualityPassed && !b.pushed && /^skipped: /.test(b.sheet.Status) && b.prompts.length === 6 && b.topicsTried.join('|') === TOPIC + '|A Later Topic',
-    'rewrite, then skipped: ' + label + ' -> ' + (b.sheet && b.sheet.Status || '').slice(9, 110));
+  const arabicOnly = label !== 'English cut off (no closing line)';
+  const callsOk = arabicOnly ? b.prompts.length === 2 && b.promptsAr.length === 6 : b.prompts.length === 6 && b.promptsAr.length === 6;
+  ok(!b.gate.qualityPassed && !b.pushed && /^skipped: /.test(b.sheet.Status) && callsOk && b.topicsTried.join('|') === TOPIC + '|A Later Topic',
+    'rewrite (' + (arabicOnly ? 'Arabic only, 1 call each' : 'whole post') + '), then skipped: ' + label + ' -> ' + (b.sheet && b.sheet.Status || '').slice(9, 90));
 }
 for (const [label, v] of Object.entries(S.allowed)) {
   const b = run({ en: v.en, ar: v.ar });
@@ -427,7 +429,7 @@ ok(formats.size >= 3, 'topics with no signal get varied formats (' + [...formats
 
 // =====================================================================
 section('Sheet status values: plain text in the existing status column');
-const review = run({ en: S.bad['template heading "What Breaks and Why"'].en, ar: S.bad['template heading "What Breaks and Why"'].ar });
+const review = run({ en: S.bad['English cut off (no closing line)'].en, ar: S.bad['English cut off (no closing line)'].ar });
 for (const [label, rowOut, re] of [['used', r.sheet, /^used$/], ['skipped', review.sheet, /^skipped: .+/], ['duplicate', sameSlug.sheet, /^duplicate: [a-z0-9-]+$/]]) {
   const keys = Object.keys(rowOut).filter(k => !k.startsWith('_'));
   ok(JSON.stringify(keys.sort()) === JSON.stringify(['Date Used', 'Status', 'Topic']) && typeof rowOut.Status === 'string' && re.test(rowOut.Status), '"' + label + '" written as text to Status (no new columns): ' + rowOut.Status.slice(0, 50));
@@ -498,11 +500,11 @@ ok(/imageQuery/.test(r.prompt) && /never anything religious/.test(r.prompt), 'En
 // =====================================================================
 section('Each language stays in its own half');
 const arInEn = run({ en: S.en.replace('## Frequently Asked Questions', '## Frequently Asked Questions\n\n### كيف أعرف متى حان الوقت لتوظيف المزيد من موظفي إدارة العقارات؟\n\nفكر في التوظيف حين يعمل الفريق ساعات إضافية بانتظام وتطول أوقات الرد على الملاك.') });
-ok(!arInEn.pushed && /English part contains Arabic text/.test(arInEn.gate.qualityReport) && /^skipped: /.test(arInEn.sheet.Status), 'Arabic question and answer in the English FAQ: needs a new draft (rewritten, then skipped)');
+ok(arInEn.pushed && arInEn.prompts.length === 1 && !/[\u0600-\u06FF]{3}/.test(arInEn.pushed.fileContent.split('<!-- AR -->')[0].split('\n---\n').pop()), 'Arabic question and answer in the English FAQ: removed by code, post published');
 const arTerm = run({ en: S.en.replace(/^(## (?!Frequently)[^\n]*\n\n)([^\n#>-])/m, '$1Landlords often ask about the brokerage commission (السعي) and the lease documentation (توثيق العقد) before signing. $2') });
 ok(arTerm.gate.qualityPassed && /السعي/.test(arTerm.pushed.fileContent.split('<!-- AR -->')[0]), 'an Arabic term inside an English sentence is allowed ' + (arTerm.gate.qualityPassed ? '' : arTerm.gate.qualityReport));
 const enHeadInAr = run({ ar: S.ar.replace('## الأسئلة الشائعة', '## الأسئلة الشائعة\n\n### How do I know when it is time to hire more staff?\n\nفكر في التوظيف حين يعمل الفريق ساعات إضافية بانتظام.') });
-ok(!enHeadInAr.pushed && /heading that is not in Arabic/.test(enHeadInAr.gate.qualityReport), 'English question in the Arabic FAQ: needs a new draft');
+ok(enHeadInAr.pushed && enHeadInAr.prompts.length === 1 && !/How do I know when it is time/.test(enHeadInAr.pushed.fileContent) && !/فكر في التوظيف حين يعمل الفريق ساعات إضافية بانتظام\./.test(enHeadInAr.pushed.fileContent), 'English question in the Arabic FAQ: question and its answer removed by code, post published');
 const enLineInAr = run({ ar: S.ar.replace('## أبرز النقاط', '*This article is general information for property operators and is not legal advice.*\n\n## أبرز النقاط') });
 ok(enLineInAr.pushed && enLineInAr.prompts.length === 1 && !/general information for property operators and is not legal advice/.test(enLineInAr.pushed.fileContent.split('<!-- AR -->')[1]) && /ليست استشارة قانونية/.test(enLineInAr.pushed.fileContent.split('<!-- AR -->')[1]), 'English disclaimer in the Arabic half: replaced by the Arabic one, published');
 const allInOne = run({ en: S.en.replace(/^(- \*\*[^\n]*)$/m, '$1 Accez is an all-in-one platform.') });
@@ -525,10 +527,10 @@ for (const [t, want] of [
 
 // =====================================================================
 section('The workflow decides by itself: rewrite, skip, next topic (owner, 7 Nov 2026)');
-const badEm = S.bad['template heading "What High Performers Do Differently"']; // needs a new draft
+const badEm = S.bad['English cut off (no closing line)']; // needs a new draft (code cannot fix a cut off article)
 const fixedOnSecond = run({ answers: [badEm, { en: S.en, ar: S.ar }] });
 ok(fixedOnSecond.gate.qualityPassed && fixedOnSecond.pushed && fixedOnSecond.sheet.Status === 'used' && fixedOnSecond.geminiCalls.length === 4, 'first draft fails, Gemini rewrites it, the second draft is published (4 Gemini calls)');
-ok(/YOUR PREVIOUS DRAFT WAS REJECTED/.test(fixedOnSecond.prompts[1]) && /template heading/.test(fixedOnSecond.prompts[1]) && !/REJECTED/.test(fixedOnSecond.prompts[0]), 'the rewrite prompt lists the exact problems; the first prompt does not');
+ok(/YOUR PREVIOUS DRAFT WAS REJECTED/.test(fixedOnSecond.prompts[1]) && /Key Takeaways/.test(fixedOnSecond.prompts[1]) && !/REJECTED/.test(fixedOnSecond.prompts[0]), 'the rewrite prompt lists the exact problems; the first prompt does not');
 ok(/THE PREVIOUS VERSION WAS REJECTED/.test(fixedOnSecond.promptsAr[1]) && !/REJECTED/.test(fixedOnSecond.promptsAr[0]), 'the Arabic step also gets the problems on a rewrite');
 const thirdTime = run({ answers: [badEm, badEm, { en: S.en, ar: S.ar }] });
 ok(thirdTime.pushed && thirdTime.sheet.Status === 'used' && thirdTime.prompts.length === 3, 'fails twice, published on the third attempt');
@@ -586,21 +588,31 @@ const splitPost = text => {
     ar: '---\n' + pick(/^(titleAr|metaTitleAr|metaDescriptionAr|excerptAr|tagsAr):/) + '\n---\n\n' + arBody.trim() + '\n'
   };
 };
-// What code fixes by itself in each live post, and what still needs a new draft.
-const RED_EXPECT = {
-  'writing-sops-the-playbooks-that-keep-operations-consistent-a.md': { fixed: [/400\+ channels/, /unsourced statistic/, /claim Accez does not make/, /portal\.accez\.cloud/, /dashes/, /disclaimer line in Arabic/], left: /template heading/ },
-  'building-and-structuring-a-property-management-team-as-you-g.md': { fixed: [/400\+ channels/, /unsourced statistic/, /claim Accez does not make/, /portal\.accez\.cloud/], left: /English part contains Arabic text|not in Arabic/ },
-  'managing-hoas-and-owners-associations-beyond-single-unit-ren.md': { fixed: [/unsourced statistic/, /claim Accez does not make/, /portal\.accez\.cloud/, /shortened metaDescription/], left: /template heading/ }
+// The three bad live posts, run through the workflow: everything is fixed by code,
+// the post is published on the first attempt, and none of the problems survives.
+const RED_FIXES = {
+  'writing-sops-the-playbooks-that-keep-operations-consistent-a.md': [/400\+ channels/, /unsourced statistic/, /claim Accez does not make/, /portal\.accez\.cloud/, /dashes/, /template heading/],
+  'building-and-structuring-a-property-management-team-as-you-g.md': [/400\+ channels/, /unsourced statistic/, /claim Accez does not make/, /portal\.accez\.cloud/, /wrong language/, /template heading/],
+  'managing-hoas-and-owners-associations-beyond-single-unit-ren.md': [/unsourced statistic/, /claim Accez does not make/, /portal\.accez\.cloud/, /template heading/]
 };
-for (const [file, expect] of Object.entries(RED_EXPECT)) {
+const TEMPLATE_RE = /do(?:es)? differently|what (?:actually )?breaks|deep dive|navigating the saudi|بشكل مختلف|ما الذي (?:ينكسر|يتعطل)|الغوص العميق|التنقل في (?:ال)?مشهد/i;
+for (const [file, want] of Object.entries(RED_FIXES)) {
   const post = splitPost(fs.readFileSync(path.join(RED, file), 'utf8'));
   const x = run({ topic: post.title, en: post.en, ar: post.ar, unsplash: { results: [notebook] } });
-  const first = x.nodes['Quality Gate'] && x.gate;
   const fixesSeen = x.gate.autoFixes || [];
-  const missing = expect.fixed.filter(re => !fixesSeen.some(f => re.test(f)));
-  const leftOk = expect.left.test(x.gate.qualityReport) && !/400|portal\.accez|unsourced|e-sign|uses an em dash|spaced hyphen|77%|percentage|study/.test(x.gate.qualityReport);
-  ok(first && !x.pushed && missing.length === 0 && leftOk, 'red team ' + file.slice(0, 40) + ': fixed by code [' + fixesSeen.length + '], left for a rewrite: ' + x.gate.qualityIssues.length
-    + (missing.length ? ' MISSING FIX ' + missing.join(' ') : '') + (leftOk ? '' : ' LEFT ' + x.gate.qualityReport.slice(0, 200)));
+  const missing = want.filter(re => !fixesSeen.some(f => re.test(f)));
+  const text = x.pushed ? x.pushed.fileContent : '';
+  const [enT, arT] = text.split('<!-- AR -->');
+  const heads = (text.match(/^#{2,4}[ \t]+.*$/gm) || []);
+  const problems = [];
+  if (heads.some(h => TEMPLATE_RE.test(h))) problems.push('template heading left');
+  if ((enT || '').split('\n---\n').pop().split('\n').some(l => /^#{2,4}\s/.test(l) && /[؀-ۿ]/.test(l))) problems.push('Arabic heading in English half');
+  if ((arT || '').split('\n').some(l => /^#{2,4}\s/.test(l) && !/[؀-ۿ]/.test(l))) problems.push('English heading in Arabic half');
+  if (/400\s?\+|\+\s?400|portal\.accez|77\s?[%٪]|[—–]|all-in-one/i.test(text)) problems.push('banned text left');
+  // e-signing and WhatsApp may be discussed in general, never as something Accez does
+  if (text.split(/(?<=[.!?؟])\s+|\n/).some(x => /accez|أكسيز/i.test(x) && /\be-?sign|التوقيع الإلكتروني|whatsapp|واتساب/i.test(x))) problems.push('Accez claim left');
+  ok(x.pushed && x.prompts.length === 1 && missing.length === 0 && problems.length === 0,
+    'red team ' + file.slice(0, 40) + ': published on the first attempt, ' + fixesSeen.length + ' kinds of fixes' + (missing.length ? ' MISSING ' + missing.join(' ') : '') + (problems.length ? ' PROBLEMS ' + problems.join(', ') : ''));
 }
 
 // =====================================================================
@@ -642,6 +654,33 @@ const inOnePlace = run({ en: S.en.replace(/^(## [^\n]*Accez[^\n]*\n\n)/m, '$1Acc
 ok(inOnePlace.pushed && /all in one place/.test(inOnePlace.pushed.fileContent), '"all in one place" in the Accez section is kept (only "all-in-one platform" is a claim)');
 const vat = run({ en: S.en.replace('## Frequently Asked Questions', 'Add 15% VAT to commercial rent where it applies, and remember that property sales pay the 5% real estate transactions tax instead.\n\n## Frequently Asked Questions') });
 ok(vat.pushed && /15% VAT/.test(vat.pushed.fileContent) && /5% real estate transactions tax/.test(vat.pushed.fileContent), 'official Saudi tax rates (VAT 15%, real estate transactions tax 5%) are kept');
+const arabicTopic = run({ topic: 'كيف توثق عقد الإيجار في منصة إيجار', rows: [{ json: { row_number: 2, Topic: 'كيف توثق عقد الإيجار في منصة إيجار', Status: 'pending', 'Date Used': '' } }] });
+ok(arabicTopic.pushed && /^content\/blog\/sustainability-and-energy-efficiency-cutting-costs\.md$/.test(arabicTopic.pushed.filePath), 'a topic written in Arabic: the address comes from the English title (' + (arabicTopic.pushed && arabicTopic.pushed.filePath) + ')');
+const noFields = run({ en: S.en.replace(/^primaryKeyword: .*\n/m, '').replace(/^tags: .*\n/m, '').replace(/^metaDescription: .*$/m, 'metaDescription: "Too short."').replace(/^excerpt: .*$/m, 'excerpt: "Short."') });
+const nf = noFields.pushed && siteParse(noFields.pushed.filePath, noFields.pushed.fileContent).post;
+ok(nf && noFields.prompts.length === 1 && nf.primaryKeyword && nf.tags.length > 0 && nf.metaDescription.length >= 100 && nf.metaDescription.length <= 160, 'missing keyword and tags, too short description: filled from the title and the opening paragraph, no rewrite');
+const longTitle = run({ en: S.en.replace(/^title: .*$/m, 'title: "' + 'Sustainability and Energy Efficiency for Property Managers Who Want to Cut Costs While Going Green Across Every Building They Run"') });
+const lt = longTitle.pushed && siteParse(longTitle.pushed.filePath, longTitle.pushed.fileContent).post;
+ok(lt && lt.title.length <= 110 && lt.metaTitle.length <= 60 && longTitle.prompts.length === 1, 'title over 110 characters: cut on a whole word, no rewrite');
+const arOnly = run({ answers: [{ en: S.en, ar: S.arDoc('') }, { en: 'NOT USED', ar: S.ar }] });
+ok(arOnly.pushed && arOnly.prompts.length === 1 && arOnly.promptsAr.length === 2 && /THE PREVIOUS VERSION WAS REJECTED/.test(arOnly.promptsAr[1]), 'only the Arabic half is broken: only the Arabic step is asked again (1 call, not 2), then published');
+for (const [h, want] of [
+  ["Navigating Saudi Arabia's Property Landscape", '## The Property Market in Saudi Arabia'],
+  ['Navigating the Saudi STR Licensing Landscape: Vision 2030 and Beyond', '## STR Licensing in Saudi Arabia: Vision 2030 and Beyond'],
+  ['Navigating the Saudi Arabian Vacation Rental Landscape with Precision', '## The Vacation Rental Market in Saudi Arabia'],
+  ['What High Performers Do Differently', '## How High Performers Work'],
+  ["Navigating Saudi Arabia's Digital Property Landscape Securely", '## The Digital Property Market in Saudi Arabia'],
+  ["Navigating Saudi Arabia's Property Landscape with Accez.Cloud", '## The Property Market in Saudi Arabia'],
+  ['Navigating the New Landscape of Tenant Data Protection', '## Tenant Data Protection Today'],
+  ["Navigating Saudi Arabia's Dynamic Property Landscape", '## The Property Market in Saudi Arabia'],
+  ['Saudi Arabia: Navigating a Unique Market Landscape', '## Saudi Arabia: How the Market Works'],
+  ["Navigating Saudi Arabia's Property Operations Landscape with RBAC", '## The Property Operations Market in Saudi Arabia']
+]) {
+  const x = run({ en: S.en.replace('## Treating Efficiency as an Investment, Not an Expense', '## ' + h) });
+  ok(x.pushed && x.prompts.length === 1 && x.pushed.fileContent.includes('\n' + want + '\n'), 'heading "' + h + '" becomes "' + want.slice(3) + '"');
+}
+const dhawi = run({ ar: S.ar.replace('## التعامل مع الكفاءة كاستثمار لا كنفقة', '## ما يفعله ذوو الأداء العالي بشكل مختلف') });
+ok(dhawi.pushed && /\n## ممارسات ذوي الأداء العالي\n/.test(dhawi.pushed.fileContent), 'Arabic template heading becomes "ممارسات ذوي الأداء العالي" (correct grammar)');
 const garbage = run({ en: 'Sorry, I cannot help with that.', ar: 'عذرًا.' });
 ok(!garbage.pushed && /^skipped: /.test(garbage.sheet.Status) && garbage.prompts.length >= 3, 'Gemini returns a refusal or garbage: asked again, then skipped; no red run');
 const allSkipped = run({ en: badEm.en, ar: badEm.ar });
