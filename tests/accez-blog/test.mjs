@@ -75,7 +75,7 @@ for (const code of wf.nodes.filter(n => n.type === 'n8n-nodes-base.code')) {
   try { new Function('$input', '$', '$now', 'DateTime', 'items', 'return (function(){' + code.parameters.jsCode + '\n})'); ok(true, 'code compiles: ' + code.name); }
   catch (e) { ok(false, 'code compiles: ' + code.name + ' ' + e.message); }
 }
-for (const n of ['Generate English Post with Gemini', 'Generate Arabic Post with Gemini', 'Push Blog Post to GitHub', 'Push Image to GitHub', 'Download Unsplash Image', 'Search Unsplash', 'Search Unsplash Fallback', 'Post Blog to Facebook Page', 'Read Topics from Google Sheets', 'Mark Topic as Used in Sheet', 'Mark Topic as Needs Review in Sheet', 'Mark Topic as Duplicate in Sheet', 'List Existing Blog Posts']) {
+for (const n of ['Generate English Post with Gemini', 'Generate Arabic Post with Gemini', 'Push Blog Post to GitHub', 'Push Image to GitHub', 'Download Unsplash Image', 'Search Unsplash', 'Search Unsplash Fallback', 'Post Blog to Facebook Page', 'Read Topics from Google Sheets', 'Mark Topic as Used in Sheet', 'Mark Topic as Skipped in Sheet', 'Mark Topic as Duplicate in Sheet', 'List Existing Blog Posts']) {
   const node = byName(n);
   ok(node.retryOnFail === true && node.maxTries === 3 && node.waitBetweenTries <= 5000, 'retry 3x on ' + n);
 }
@@ -276,7 +276,7 @@ for (const step of ['downloadError', 'pushError']) {
   ok(p2.coverImage === '/images/blog/pm-default.jpg' && !p2.coverImageCredit && /suburban houses/.test(p2.coverImageAlt) && !/^"/.test(x.imageError), step + ': default cover, no credit, readable error "' + x.imageError + '"');
 }
 const noImg = run({ unsplash: { results: [] }, fallbackUnsplash: { error: { message: 'rate limit' } } });
-ok(!noImg.pushed && /no suitable cover photo/.test(noImg.gate.qualityReport) && /^needs review: /.test(noImg.sheet.Status), 'no suitable photo after both searches: nothing published with the shared placeholder, row marked needs review');
+ok(!noImg.pushed && /no suitable cover photo/.test(noImg.gate.qualityReport) && /^skipped: /.test(noImg.sheet.Status), 'no suitable photo after 3 attempts: nothing published with the shared placeholder, row skipped');
 const errSearch = run({ unsplash: { error: { message: '500' } }, fallbackUnsplash: UNSPLASH });
 ok(errSearch.gate.hasImage === true, 'Unsplash search error -> fallback search used (no IF type error)');
 const fbErr = run({ facebookError: true });
@@ -297,11 +297,11 @@ const qp = quoted.pushed && siteParse(quoted.pushed.filePath, quoted.pushed.file
 ok(qp && qp.title === 'The "Green" Lease: Cutting Costs \\ Going Green' && qp.titleAr === 'الإيجار "الأخضر": خفض التكاليف', 'unescaped quotes/colon/backslash in titles survive: ' + (qp && qp.title));
 
 // =====================================================================
-section('Quality Gate blocks bad output (nothing pushed, row marked "needs review")');
+section('Quality Gate blocks bad output (rewritten 3 times, then the topic is skipped; nothing pushed)');
 const REPAIRED = ['closing line links the wrong solution page', 'Arabic closing line links the wrong solution page'];
 for (const [label, v] of Object.entries(S.bad).filter(([k]) => !REPAIRED.includes(k))) {
   const b = run({ en: v.en, ar: v.ar });
-  ok(!b.gate.qualityPassed && !b.pushed && /^needs review: /.test(b.sheet.Status) && b.output.status === 'Needs review',
+  ok(!b.gate.qualityPassed && !b.pushed && /^skipped: /.test(b.sheet.Status) && b.prompts.filter((_, i) => i < 3).length === 3 && b.topicsTried.join('|') === TOPIC + '|A Later Topic',
     'blocked: ' + label + ' -> ' + (b.sheet && b.sheet.Status || '').slice(14, 120));
 }
 for (const [label, v] of Object.entries(S.allowed)) {
@@ -343,10 +343,11 @@ for (const [topic, want] of [
 // =====================================================================
 section('Duplicate check before writing');
 const sameSlug = run({ githubList: FIXTURE_SLUGS, topic: 'Preventive Maintenance: How to Stop Small Issues Becoming Big' });
-ok(sameSlug.plan.isDuplicate && sameSlug.plan.duplicateOf === 'preventive-maintenance-how-to-stop-small-issues-becoming-big' && sameSlug.geminiCalls.length === 0 && !sameSlug.pushed,
-  'same slug as an existing post: no Gemini call, nothing pushed');
-ok(sameSlug.sheet.Status === 'duplicate: preventive-maintenance-how-to-stop-small-issues-becoming-big' && sameSlug.sheet.Topic === sameSlug.plan.topic && sameSlug.output.status === 'Duplicate',
-  'row marked "duplicate: <existing slug>" in the status column, Output Duplicate ends the run cleanly');
+ok(sameSlug.plan.isDuplicate && sameSlug.plan.duplicateOf === 'preventive-maintenance-how-to-stop-small-issues-becoming-big' && !sameSlug.geminiCalls.some(c => c.prompt.includes('Preventive Maintenance: How to Stop')),
+  'same slug as an existing post: never written (no Gemini call for it)');
+ok(sameSlug.sheet.Status === 'duplicate: preventive-maintenance-how-to-stop-small-issues-becoming-big' && sameSlug.sheet.Topic === sameSlug.plan.topic
+  && sameSlug.topicsTried[1] === 'A Later Topic' && sameSlug.pushed && sameSlug.pushed.filePath === 'content/blog/a-later-topic.md' && sameSlug.output.status === 'Success',
+  'row marked "duplicate: <existing slug>", then the run writes the next pending topic and publishes it');
 const sample = run({ githubList: FIXTURE_SLUGS });
 ok(sample.plan.isDuplicate && sample.plan.duplicateOf === SAMPLE_SLUG, 'the sample topic is a duplicate once its post is on the site (slug cut at 60 vs full slug): ' + sample.plan.duplicateReason);
 for (const [topic, existing] of [
@@ -397,7 +398,7 @@ ok(formats.size >= 3, 'topics with no signal get varied formats (' + [...formats
 // =====================================================================
 section('Sheet status values: plain text in the existing status column');
 const review = run({ en: S.bad['em dash'].en, ar: S.bad['em dash'].ar });
-for (const [label, rowOut, re] of [['used', r.sheet, /^used$/], ['needs review', review.sheet, /^needs review: .+/], ['duplicate', sameSlug.sheet, /^duplicate: [a-z0-9-]+$/]]) {
+for (const [label, rowOut, re] of [['used', r.sheet, /^used$/], ['skipped', review.sheet, /^skipped: .+/], ['duplicate', sameSlug.sheet, /^duplicate: [a-z0-9-]+$/]]) {
   const keys = Object.keys(rowOut).filter(k => !k.startsWith('_'));
   ok(JSON.stringify(keys.sort()) === JSON.stringify(['Date Used', 'Status', 'Topic']) && typeof rowOut.Status === 'string' && re.test(rowOut.Status), '"' + label + '" written as text to Status (no new columns): ' + rowOut.Status.slice(0, 50));
 }
@@ -491,6 +492,28 @@ for (const [t, want] of [
   const s = runCode(code('Find First Pending Topic'), { input: [{ json: { row_number: 2, Topic: t, Status: 'pending' } }] })[0].json.topicSlug;
   ok(s === want, 'slug for "' + t + '" = ' + s);
 }
+
+// =====================================================================
+section('The workflow decides by itself: rewrite, skip, next topic (owner, 7 Nov 2026)');
+const badEm = S.bad['em dash'];
+const fixedOnSecond = run({ answers: [badEm, { en: S.en, ar: S.ar }] });
+ok(fixedOnSecond.gate.qualityPassed && fixedOnSecond.pushed && fixedOnSecond.sheet.Status === 'used' && fixedOnSecond.geminiCalls.length === 4, 'first draft fails, Gemini rewrites it, the second draft is published (4 Gemini calls)');
+ok(/YOUR PREVIOUS DRAFT WAS REJECTED/.test(fixedOnSecond.prompts[1]) && /dash/.test(fixedOnSecond.prompts[1]) && !/REJECTED/.test(fixedOnSecond.prompts[0]), 'the rewrite prompt lists the exact problems; the first prompt does not');
+ok(/THE PREVIOUS VERSION WAS REJECTED/.test(fixedOnSecond.promptsAr[1]) && !/REJECTED/.test(fixedOnSecond.promptsAr[0]), 'the Arabic step also gets the problems on a rewrite');
+const thirdTime = run({ answers: [badEm, badEm, { en: S.en, ar: S.ar }] });
+ok(thirdTime.pushed && thirdTime.sheet.Status === 'used' && thirdTime.prompts.length === 3, 'fails twice, published on the third attempt');
+const skipThenNext = run({ answers: [badEm, badEm, badEm, { en: S.en, ar: S.ar }] });
+ok(/^skipped: /.test(skipThenNext.sheet.Status) && skipThenNext.pushed && skipThenNext.pushed.filePath === 'content/blog/a-later-topic.md' && skipThenNext.sheetUpdates[1].Status === 'used',
+  'three failures: topic skipped (not "needs review"), and the next pending topic is published in the same run');
+ok(skipThenNext.prompts.length === 4 && !/REJECTED/.test(skipThenNext.prompts[3]), 'the next topic starts fresh (attempt count and problems do not carry over)');
+const manyBad = run({ en: badEm.en, ar: badEm.ar, rows: [1, 2, 3, 4, 5].map(i => ({ json: { row_number: i + 1, Topic: 'Bad Topic Number ' + i, Status: 'pending', 'Date Used': '' } })) });
+ok(manyBad.topicsTried.length === 3 && manyBad.prompts.length === 9 && !manyBad.pushed && manyBad.output.status === 'Nothing left to write', 'at most 3 topics per run (9 Gemini drafts), then the run ends quietly');
+const legacy = run({ rows: [{ json: { row_number: 2, Topic: TOPIC, Status: 'needs review: Arabic part does not end with a closing line', 'Date Used': '2026-11-07' } }] });
+ok(legacy.topicsTried[0] === TOPIC && legacy.pushed && legacy.sheet.Status === 'used', 'a "needs review" row left by the old workflow is tried again automatically and published');
+const ejarTopic = 'How to Document a Residential Lease on Ejar, Step by Step';
+const ejarRun = run({ topic: ejarTopic, ar: S.ar.trim().split('\n').filter(l => !l.includes('](/ar/solutions/property-managers/)')).join('\n') + '\n' });
+ok(ejarRun.pushed && ejarRun.sheet.Status === 'used' && ejarRun.prompts.length === 1, 'the 7 Nov case (Arabic closing line missing) is published on the first attempt now');
+ok(!byName('Output Needs Review') || false, 'no "Output Needs Review" step: nothing waits for a person');
 
 // =====================================================================
 section('First live run, 7 Nov 2026: Ejar lease topic stopped for review');

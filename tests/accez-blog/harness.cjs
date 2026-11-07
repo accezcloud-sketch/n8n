@@ -22,11 +22,12 @@ function dollar(nodes) {
 }
 
 /** Runs a Code node ("Run Once for All Items") and returns its output items. */
-function runCode(jsCode, { input = [], nodes = {} } = {}) {
+function runCode(jsCode, { input = [], nodes = {}, runIndex = 0 } = {}) {
   const $input = { all: () => input, first: () => input[0], last: () => input[input.length - 1], item: input[0] };
   // Like n8n, the node's code runs in its own function scope (it may redeclare `items`).
-  const fn = new Function('$input', '$', '$now', 'DateTime', 'items', 'return (function () {\n' + jsCode + '\n})();');
-  const out = fn($input, dollar(nodes), $now, DateTime, input);
+  // $runIndex: how many times this node already ran in this execution (loops).
+  const fn = new Function('$input', '$', '$now', 'DateTime', 'items', '$runIndex', 'return (function () {\n' + jsCode + '\n})();');
+  const out = fn($input, dollar(nodes), $now, DateTime, input, runIndex);
   if (!Array.isArray(out)) throw new Error('Code node must return an array');
   for (const item of out) if (!item || typeof item.json !== 'object') throw new Error('Code node item without json');
   return out;

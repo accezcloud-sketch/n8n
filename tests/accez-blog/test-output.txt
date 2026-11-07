@@ -53,7 +53,8 @@ PASS code compiles: Prepare Duplicate Sheet Update
 PASS code compiles: Check English Draft
 PASS code compiles: Quality Gate
 PASS code compiles: Use Default Cover
-PASS code compiles: Prepare Review Sheet Update
+PASS code compiles: Prepare Skipped Sheet Update
+PASS code compiles: Decide Retry
 PASS retry 3x on Generate English Post with Gemini
 PASS retry 3x on Generate Arabic Post with Gemini
 PASS retry 3x on Push Blog Post to GitHub
@@ -64,7 +65,7 @@ PASS retry 3x on Search Unsplash Fallback
 PASS retry 3x on Post Blog to Facebook Page
 PASS retry 3x on Read Topics from Google Sheets
 PASS retry 3x on Mark Topic as Used in Sheet
-PASS retry 3x on Mark Topic as Needs Review in Sheet
+PASS retry 3x on Mark Topic as Skipped in Sheet
 PASS retry 3x on Mark Topic as Duplicate in Sheet
 PASS retry 3x on List Existing Blog Posts
 
@@ -111,7 +112,6 @@ PASS parameters of "Collect Existing Posts" (code v2) are valid
 PASS parameters of "If Duplicate Topic" (if v2.2) are valid
 PASS parameters of "Prepare Duplicate Sheet Update" (code v2) are valid
 PASS parameters of "Mark Topic as Duplicate in Sheet" (googleSheets v4.7) are valid
-PASS parameters of "Output Duplicate" (set v3.4) are valid
 PASS parameters of "Check English Draft" (code v2) are valid
 PASS parameters of "Generate Arabic Post with Gemini" (chainLlm v1.9) are valid
 PASS parameters of "Google Gemini Chat Model (Arabic)" (lmChatGoogleGemini v1) are valid
@@ -119,9 +119,8 @@ PASS parameters of "Quality Gate" (code v2) are valid
 PASS parameters of "If Quality Passed" (if v2.2) are valid
 PASS parameters of "Use Default Cover" (code v2) are valid
 PASS parameters of "Fail Run on GitHub Error" (stopAndError v1) are valid
-PASS parameters of "Prepare Review Sheet Update" (code v2) are valid
-PASS parameters of "Mark Topic as Needs Review in Sheet" (googleSheets v4.7) are valid
-PASS parameters of "Output Needs Review" (set v3.4) are valid
+PASS parameters of "Prepare Skipped Sheet Update" (code v2) are valid
+PASS parameters of "Mark Topic as Skipped in Sheet" (googleSheets v4.7) are valid
 PASS parameters of "Wait for Site Deploy" (wait v1.1) are valid
 PASS parameters of "Notify IndexNow" (httpRequest v4.2) are valid
 PASS parameters of "Sticky Note9" (stickyNote v1) are valid
@@ -129,13 +128,15 @@ PASS parameters of "Sticky Note10" (stickyNote v1) are valid
 PASS parameters of "Sticky Note11" (stickyNote v1) are valid
 PASS parameters of "Read Used Cover Photos" (httpRequest v4.2) are valid
 PASS parameters of "Track Unsplash Download" (httpRequest v4.2) are valid
+PASS parameters of "Decide Retry" (code v2) are valid
+PASS parameters of "Retry Writing?" (if v2.2) are valid
 PASS GitHub file:list = resource "file", operation "list", folder in "filePath" (the "Path" field; no returnAll for file:list)
 PASS GitHub listing is optional (continue on fail, always outputs)
 PASS Push Blog Post to GitHub: file create (default operation) with content and commit message
 PASS Push Image to GitHub: file create (default operation) with content and commit message
 PASS Mark Topic as Used in Sheet: update row, auto-map, match on the topic column, extra fields ignored
 PASS Mark Topic as Duplicate in Sheet: update row, auto-map, match on the topic column, extra fields ignored
-PASS Mark Topic as Needs Review in Sheet: update row, auto-map, match on the topic column, extra fields ignored
+PASS Mark Topic as Skipped in Sheet: update row, auto-map, match on the topic column, extra fields ignored
 PASS IndexNow: POST JSON body to https://api.indexnow.org/indexnow, no credential needed
 PASS IndexNow failure never stops the run (continue on fail)
 PASS Wait for Site Deploy: 5 minutes (time interval)
@@ -210,59 +211,59 @@ PASS IndexNow failure: reported, run still succeeds, Facebook still posted
 # Image, GitHub and Facebook failures
 PASS downloadError: default cover, no credit, readable error "timeout"
 PASS pushError: default cover, no credit, readable error "sha missing"
-PASS no suitable photo after both searches: nothing published with the shared placeholder, row marked needs review
+PASS no suitable photo after 3 attempts: nothing published with the shared placeholder, row skipped
 PASS Unsplash search error -> fallback search used (no IF type error)
 PASS Facebook failure reported, sheet already marked used
 PASS GitHub push failure ends in Stop and Error with the plain message, sheet untouched: GitHub push failed for "Sustainability and Energy Efficiency: Cutting Costs While Going Green": file already exists
 PASS GitHub listing failed: duplicate check skipped, no articles offered, gate rejects any /blog/ link
 PASS unescaped quotes/colon/backslash in titles survive: The "Green" Lease: Cutting Costs \ Going Green
 
-# Quality Gate blocks bad output (nothing pushed, row marked "needs review")
-PASS blocked: 400+ channels -> mentions "400+" channels (Accez connects Airbnb, Booking.com and Expedia only)
-PASS blocked: 77% statistic -> contains the planted "77%" statistic; states a percentage without linking the source: "Property managers o
-PASS blocked: unlinked study -> cites a study or research without linking the source: "Property managers often grapple with the paradox of
-PASS blocked: unlinked percentage -> states a percentage without linking the source: "Property managers often grapple with the paradox of incre
-PASS blocked: em dash -> uses an em dash or en dash
-PASS blocked: spaced hyphen in title -> uses a spaced hyphen " - " as punctuation
-PASS blocked: metaTitle too long -> metaTitle is 72 characters (max 60)
-PASS blocked: no Arabic part -> Arabic part is missing, too short or not in Arabic; Arabic FAQ heading is not exactly "## الأسئلة الشائعة"
-PASS blocked: Arabic cut off (no closing line) -> Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading is not exactly "## أبرز ا
-PASS blocked: English cut off (no closing line) -> English "## Key Takeaways" heading is missing (the output may be cut off)
-PASS blocked: code fence in body -> body contains a code fence
-PASS blocked: YAML in body -> body contains frontmatter (YAML) lines
-PASS blocked: wrong Arabic heading -> Arabic takeaways heading is not exactly "## أبرز النقاط"
-PASS blocked: link to missing article -> links to an article that does not exist: /blog/how-to-cut-energy-bills-in-riyadh/
-PASS blocked: Accez claims WhatsApp -> the Accez section claims a feature Accez does not offer ("WhatsApp"); claims or discusses an unconfirmed A
-PASS blocked: tenants book providers via Accez -> says tenants or guests book service providers through Accez
-PASS blocked: figure about Accez -> states a percentage without linking the source: "Property managers often grapple with the paradox of incre
-PASS blocked: raw HTML -> body contains raw HTML tags
-PASS blocked: vague link text -> link text is not descriptive: "here"
-PASS blocked: template heading "What High Performers Do Differently" -> uses a template heading instead of one that describes the section: "What High Performers Do Differently"
-PASS blocked: template heading "What Breaks and Why" -> uses a template heading instead of one that describes the section: "The Hidden Costs: What Breaks and Why"
-PASS blocked: template heading "A Deep Dive into ..." -> uses a template heading instead of one that describes the section: "A Deep Dive into Energy Waste"
-PASS blocked: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> uses a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل مختل
-PASS blocked: Arabic template heading "ما الذي يتعطل ولماذا" -> uses a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
-PASS blocked: generic heading "Conclusion" -> uses a generic heading: "Conclusion"
-PASS blocked: ends with "Visit portal.accez.cloud" instead of the solution link -> links to or mentions portal.accez.cloud (posts end with the solution page link instead)
-PASS blocked: portal.accez.cloud link inside the body -> links to or mentions portal.accez.cloud (posts end with the solution page link instead)
-PASS blocked: Accez claims mada, Apple Pay and STC Pay -> the Accez section claims a feature Accez does not offer ("mada"); claims or discusses an unconfirmed Accez
-PASS blocked: Accez and ZATCA compliance -> claims or discusses an unconfirmed Accez feature ("ZATCA"): "Accez is fully compliant with ZATCA e-invoici
-PASS blocked: Accez and ZATCA non-compliance -> claims or discusses an unconfirmed Accez feature ("ZATCA"): "Note that Accez is not yet certified for ZATC
-PASS blocked: Accez claims e-signing -> claims or discusses an unconfirmed Accez feature ("e-sign"): "Accez lets owners e-sign leases in minutes."
-PASS blocked: Accez claims a tenant portal -> the Accez section claims a feature Accez does not offer ("Tenant portal"); claims or discusses an unconfir
-PASS blocked: Accez claims dynamic pricing -> claims or discusses an unconfirmed Accez feature ("dynamic pricing"): "Accez also offers dynamic pricing t
-PASS blocked: Accez claims automatic reminders -> claims or discusses an unconfirmed Accez feature ("automatic rent reminders"): "Accez sends automatic rent
-PASS blocked: Accez claims minimum stay rules -> the Accez section claims a feature Accez does not offer ("minimum stay"); claims or discusses an unconfirm
-PASS blocked: Accez claims inspection checklists -> claims or discusses an unconfirmed Accez feature ("inspection checklists"): "Accez inspection checklists m
-PASS blocked: Accez claims visitor management -> claims or discusses an unconfirmed Accez feature ("visitor management"): "Accez includes visitor managemen
-PASS blocked: Accez claims Ejar integration -> says Accez files or syncs with Ejar: "Accez registers every lease with Ejar for you."
-PASS blocked: Accez claims a booking engine -> claims or discusses an unconfirmed Accez feature ("direct booking website"): "Accez gives you a direct boo
-PASS blocked: Accez claims a vendor directory -> claims or discusses an unconfirmed Accez feature ("vendor directory"): "Accez has a vendor directory of ap
-PASS blocked: Accez claims smart locks -> claims or discusses an unconfirmed Accez feature ("smart locks"): "Accez connects to smart locks for keyle
-PASS blocked: Accez claims AI features -> claims or discusses an unconfirmed Accez feature ("AI"): "Accez uses AI to predict which units need repair
-PASS blocked: Arabic: Accez claims WhatsApp -> claims or discusses an unconfirmed Accez feature ("واتساب"): "ويتكامل Accez مع واتساب لمراسلة النزلاء."
-PASS blocked: Arabic: Accez claims e-signing -> claims or discusses an unconfirmed Accez feature ("التوقيع الإلكتروني"): "ويتيح أكسيز التوقيع الإلكتروني ل
-PASS blocked: Arabic: Accez claims mada -> claims or discusses an unconfirmed Accez feature ("عبر مدى"): "ويقبل Accez الدفع عبر مدى وأبل باي."
+# Quality Gate blocks bad output (rewritten 3 times, then the topic is skipped; nothing pushed)
+PASS blocked: 400+ channels -> ons "400+" channels (Accez connects Airbnb, Booking.com and Expedia only)
+PASS blocked: 77% statistic -> ins the planted "77%" statistic; states a percentage without linking the source: "Property managers often 
+PASS blocked: unlinked study ->  a study or research without linking the source: "Property managers often grapple with the paradox of incr
+PASS blocked: unlinked percentage -> s a percentage without linking the source: "Property managers often grapple with the paradox of increasing
+PASS blocked: em dash -> an em dash or en dash
+PASS blocked: spaced hyphen in title -> a spaced hyphen " - " as punctuation
+PASS blocked: metaTitle too long -> itle is 72 characters (max 60)
+PASS blocked: no Arabic part -> c part is missing, too short or not in Arabic; Arabic FAQ heading is not exactly "## الأسئلة الشائعة"; Ara
+PASS blocked: Arabic cut off (no closing line) -> c FAQ heading is not exactly "## الأسئلة الشائعة"; Arabic takeaways heading is not exactly "## أبرز النقاط
+PASS blocked: English cut off (no closing line) -> sh "## Key Takeaways" heading is missing (the output may be cut off)
+PASS blocked: code fence in body -> contains a code fence
+PASS blocked: YAML in body -> contains frontmatter (YAML) lines
+PASS blocked: wrong Arabic heading -> c takeaways heading is not exactly "## أبرز النقاط"
+PASS blocked: link to missing article ->  to an article that does not exist: /blog/how-to-cut-energy-bills-in-riyadh/
+PASS blocked: Accez claims WhatsApp -> ccez section claims a feature Accez does not offer ("WhatsApp"); claims or discusses an unconfirmed Accez 
+PASS blocked: tenants book providers via Accez -> tenants or guests book service providers through Accez
+PASS blocked: figure about Accez -> s a percentage without linking the source: "Property managers often grapple with the paradox of increasing
+PASS blocked: raw HTML -> contains raw HTML tags
+PASS blocked: vague link text -> text is not descriptive: "here"
+PASS blocked: template heading "What High Performers Do Differently" -> a template heading instead of one that describes the section: "What High Performers Do Differently"
+PASS blocked: template heading "What Breaks and Why" -> a template heading instead of one that describes the section: "The Hidden Costs: What Breaks and Why"
+PASS blocked: template heading "A Deep Dive into ..." -> a template heading instead of one that describes the section: "A Deep Dive into Energy Waste"
+PASS blocked: Arabic template heading "ما يفعله أصحاب الأداء العالي بشكل مختلف" -> a template heading instead of one that describes the section: "ما يفعله أصحاب الأداء العالي بشكل مختلف"
+PASS blocked: Arabic template heading "ما الذي يتعطل ولماذا" -> a template heading instead of one that describes the section: "ما الذي يتعطل ولماذا"
+PASS blocked: generic heading "Conclusion" -> a generic heading: "Conclusion"
+PASS blocked: ends with "Visit portal.accez.cloud" instead of the solution link ->  to or mentions portal.accez.cloud (posts end with the solution page link instead)
+PASS blocked: portal.accez.cloud link inside the body ->  to or mentions portal.accez.cloud (posts end with the solution page link instead)
+PASS blocked: Accez claims mada, Apple Pay and STC Pay -> ccez section claims a feature Accez does not offer ("mada"); claims or discusses an unconfirmed Accez feat
+PASS blocked: Accez and ZATCA compliance -> s or discusses an unconfirmed Accez feature ("ZATCA"): "Accez is fully compliant with ZATCA e-invoicing ru
+PASS blocked: Accez and ZATCA non-compliance -> s or discusses an unconfirmed Accez feature ("ZATCA"): "Note that Accez is not yet certified for ZATCA Fat
+PASS blocked: Accez claims e-signing -> s or discusses an unconfirmed Accez feature ("e-sign"): "Accez lets owners e-sign leases in minutes."
+PASS blocked: Accez claims a tenant portal -> ccez section claims a feature Accez does not offer ("Tenant portal"); claims or discusses an unconfirmed A
+PASS blocked: Accez claims dynamic pricing -> s or discusses an unconfirmed Accez feature ("dynamic pricing"): "Accez also offers dynamic pricing that a
+PASS blocked: Accez claims automatic reminders -> s or discusses an unconfirmed Accez feature ("automatic rent reminders"): "Accez sends automatic rent remi
+PASS blocked: Accez claims minimum stay rules -> ccez section claims a feature Accez does not offer ("minimum stay"); claims or discusses an unconfirmed Ac
+PASS blocked: Accez claims inspection checklists -> s or discusses an unconfirmed Accez feature ("inspection checklists"): "Accez inspection checklists make m
+PASS blocked: Accez claims visitor management -> s or discusses an unconfirmed Accez feature ("visitor management"): "Accez includes visitor management for
+PASS blocked: Accez claims Ejar integration -> Accez files or syncs with Ejar: "Accez registers every lease with Ejar for you."
+PASS blocked: Accez claims a booking engine -> s or discusses an unconfirmed Accez feature ("direct booking website"): "Accez gives you a direct booking 
+PASS blocked: Accez claims a vendor directory -> s or discusses an unconfirmed Accez feature ("vendor directory"): "Accez has a vendor directory of approve
+PASS blocked: Accez claims smart locks -> s or discusses an unconfirmed Accez feature ("smart locks"): "Accez connects to smart locks for keyless ch
+PASS blocked: Accez claims AI features -> s or discusses an unconfirmed Accez feature ("AI"): "Accez uses AI to predict which units need repairs."
+PASS blocked: Arabic: Accez claims WhatsApp -> s or discusses an unconfirmed Accez feature ("واتساب"): "ويتكامل Accez مع واتساب لمراسلة النزلاء."
+PASS blocked: Arabic: Accez claims e-signing -> s or discusses an unconfirmed Accez feature ("التوقيع الإلكتروني"): "ويتيح أكسيز التوقيع الإلكتروني لعقود 
+PASS blocked: Arabic: Accez claims mada -> s or discusses an unconfirmed Accez feature ("عبر مدى"): "ويقبل Accez الدفع عبر مدى وأبل باي."
 PASS allowed: ZATCA discussed in general 
 PASS allowed: mada and WhatsApp discussed in general 
 PASS allowed: Arabic: Ejar discussed in general 
@@ -282,8 +283,8 @@ PASS solution page for "Lease Renewals for Long-Term Tenants" = property-manager
 PASS solution page for "Spa Amenities in Hotels: What Guests Expect" = property-managers
 
 # Duplicate check before writing
-PASS same slug as an existing post: no Gemini call, nothing pushed
-PASS row marked "duplicate: <existing slug>" in the status column, Output Duplicate ends the run cleanly
+PASS same slug as an existing post: never written (no Gemini call for it)
+PASS row marked "duplicate: <existing slug>", then the run writes the next pending topic and publishes it
 PASS the sample topic is a duplicate once its post is on the site (slug cut at 60 vs full slug): 6 shared words (overlap 100%)
 PASS near duplicate: "Cash Flow Forecasting for Property Managers" -> cash-flow-forecasting-for-property-management-businesses (4 shared words (overlap 75%))
 PASS near duplicate: "Email Marketing to Past Guests" -> email-marketing-to-past-guests-turning-one-time-stays-into-repeat-bookings (4 shared words (overlap 40%))
@@ -313,7 +314,7 @@ PASS topics with no signal get varied formats (explainer, how-to, comparison, ch
 
 # Sheet status values: plain text in the existing status column
 PASS "used" written as text to Status (no new columns): used
-PASS "needs review" written as text to Status (no new columns): needs review: uses an em dash or en dash
+PASS "skipped" written as text to Status (no new columns): skipped: uses an em dash or en dash
 PASS "duplicate" written as text to Status (no new columns): duplicate: preventive-maintenance-how-to-stop-smal
 
 # Slug cutter
@@ -370,6 +371,18 @@ PASS slug for "Managing HOAs and Owners Associations: Beyond Single-Unit Rentals
 PASS slug for "Sustainability and Energy Efficiency: Cutting Costs While Going Green" = sustainability-and-energy-efficiency-cutting-costs
 PASS slug for "Short Topic Under Sixty Characters Ends With And" = short-topic-under-sixty-characters-ends-with-and
 
+# The workflow decides by itself: rewrite, skip, next topic (owner, 7 Nov 2026)
+PASS first draft fails, Gemini rewrites it, the second draft is published (4 Gemini calls)
+PASS the rewrite prompt lists the exact problems; the first prompt does not
+PASS the Arabic step also gets the problems on a rewrite
+PASS fails twice, published on the third attempt
+PASS three failures: topic skipped (not "needs review"), and the next pending topic is published in the same run
+PASS the next topic starts fresh (attempt count and problems do not carry over)
+PASS at most 3 topics per run (9 Gemini drafts), then the run ends quietly
+PASS a "needs review" row left by the old workflow is tried again automatically and published
+PASS the 7 Nov case (Arabic closing line missing) is published on the first attempt now
+PASS no "Output Needs Review" step: nothing waits for a person
+
 # First live run, 7 Nov 2026: Ejar lease topic stopped for review
 PASS Arabic closing line missing: the standard one is added, post not stopped 
 PASS disclaimer after the closing line: the closing line is moved back to the end
@@ -388,4 +401,4 @@ PASS blocked: writing-sops-the-playbooks-that-keep-ope (20 problems found)
 PASS blocked: building-and-structuring-a-property-mana (29 problems found)
 PASS blocked: managing-hoas-and-owners-associations-be (11 problems found)
 
-349 checks, ALL PASSED
+360 checks, ALL PASSED

@@ -33,185 +33,229 @@ function ifOutput(node, json, nodes) {
 const setOutput = (node, json, nodes) => Object.fromEntries(node.parameters.assignments.assignments.map(a => [a.name, evalExpr(a.value, { json, nodes })]));
 
 /**
- * opts: topic, en, ar (the two Gemini answers), unsplash, fallbackUnsplash,
+ * opts: topic, en, ar (the first pair of Gemini answers), answers (optional list of
+ *       {en, ar} pairs used in order for every writing attempt, the last one repeats),
+ *       unsplash, fallbackUnsplash, usedCovers,
  *       rows (sheet rows; default: one used row, the topic pending, one later pending),
  *       githubList ('ok' | 'error' | array of slugs), imageStep ('ok' | 'downloadError' | 'pushError'),
  *       pushError, facebookError, indexNowError
+ * The run follows the workflow's loops: a failed Quality Gate goes to "Decide Retry"
+ * (rewrite, then skip), and a skipped or duplicate topic goes back to the sheet for
+ * the next pending topic, exactly as the connections say.
  */
 function runPipeline(workflowFile, opts) {
   const { wf, node, code } = loadWorkflow(workflowFile);
   const nodes = {};
   const trace = [];
   const geminiCalls = [];
-  const set = (name, items) => { nodes[name] = items; trace.push(name); return items; };
-  const result = { trace, nodes, geminiCalls, gate: null, pushed: null, sheet: null, output: null };
-
-  const trigger = wf.nodes.find(n => n.type === 'n8n-nodes-base.scheduleTrigger');
-  expectNext(wf, trigger.name, 'Read Topics from Google Sheets');
-  set('Read Topics from Google Sheets', opts.rows || [
+  const runs = {};
+  const set = (name, items) => { nodes[name] = items; trace.push(name); runs[name] = (runs[name] || 0) + 1; return items; };
+  const exec = (name, input) => set(name, runCode(code(name), { input, nodes, runIndex: runs[name] || 0 }));
+  const result = { trace, nodes, geminiCalls, gate: null, pushed: null, sheet: null, sheetUpdates: [], output: null, prompts: [], promptsAr: [], topicsTried: [] };
+  const rows = (opts.rows || [
     { json: { row_number: 2, Topic: 'An Older Topic', Status: 'used', 'Date Used': '2026-10-26' } },
     { json: { row_number: 3, Topic: opts.topic, Status: 'pending', 'Date Used': '' } },
     { json: { row_number: 4, Topic: 'A Later Topic', Status: 'pending', 'Date Used': '' } }
-  ]);
-  expectNext(wf, 'Read Topics from Google Sheets', 'Find First Pending Topic');
-  set('Find First Pending Topic', runCode(code('Find First Pending Topic'), { input: nodes['Read Topics from Google Sheets'], nodes }));
-
-  // ---- existing posts + duplicate check ----
-  expectNext(wf, 'Find First Pending Topic', 'List Existing Blog Posts');
-  const slugs = Array.isArray(opts.githubList) ? opts.githubList : OTHER_SLUGS;
-  // On failure the GitHub node (continueRegularOutput) outputs { error: '<message>' }.
-  const listItems = opts.githubList === 'error'
-    ? [{ json: { error: 'Bad credentials' } }]
-    : slugs.map(s => ({ json: { name: s + '.md', path: 'content/blog/' + s + '.md', type: 'file' } }));
-  set('List Existing Blog Posts', listItems);
-  expectNext(wf, 'List Existing Blog Posts', 'Collect Existing Posts');
-  set('Collect Existing Posts', runCode(code('Collect Existing Posts'), { input: listItems, nodes }));
-  const plan = nodes['Collect Existing Posts'][0].json;
-  result.plan = plan;
-  expectNext(wf, 'Collect Existing Posts', 'If Duplicate Topic');
-  const dupOut = ifOutput(node('If Duplicate Topic'), plan, nodes);
-  set('If Duplicate Topic', nodes['Collect Existing Posts']);
-  if (dupOut === 0) {
-    expectNext(wf, 'If Duplicate Topic', 'Prepare Duplicate Sheet Update', 0);
-    set('Prepare Duplicate Sheet Update', runCode(code('Prepare Duplicate Sheet Update'), { input: nodes['Collect Existing Posts'], nodes }));
-    result.sheet = nodes['Prepare Duplicate Sheet Update'][0].json;
-    expectNext(wf, 'Prepare Duplicate Sheet Update', 'Mark Topic as Duplicate in Sheet');
-    set('Mark Topic as Duplicate in Sheet', nodes['Prepare Duplicate Sheet Update']);
-    expectNext(wf, 'Mark Topic as Duplicate in Sheet', 'Output Duplicate');
-    result.output = setOutput(node('Output Duplicate'), {}, nodes);
-    if (next(wf, 'Output Duplicate').length) throw new Error('Output Duplicate must end the run');
+  ]).map(r => ({ json: { ...r.json } }));
+  const answers = opts.answers || [{ en: opts.en, ar: opts.ar }];
+  let answerIndex = 0;
+  const nextAnswer = () => answers[Math.min(answerIndex++, answers.length - 1)];
+  const applySheet = upd => {
+    result.sheetUpdates.push(upd);
+    const row = rows.find(r => r.json.Topic === upd.Topic);
+    if (row) { row.json.Status = upd.Status; row.json['Date Used'] = upd['Date Used']; }
+  };
+  const finish = () => {
+    result.sheet = result.sheetUpdates.find(u => u.Topic === opts.topic) || result.sheetUpdates[result.sheetUpdates.length - 1] || null;
     return result;
-  }
+  };
 
-  // ---- two Gemini calls ----
-  expectNext(wf, 'If Duplicate Topic', 'Generate English Post with Gemini', 1);
-  const llmEn = node('Generate English Post with Gemini');
-  const promptEn = evalExpr(llmEn.parameters.text, { json: plan, nodes });
-  geminiCalls.push({ node: llmEn.name, prompt: promptEn });
-  result.prompt = promptEn;
-  set(llmEn.name, [{ json: { text: opts.en } }]);
-  expectNext(wf, llmEn.name, 'Check English Draft');
-  set('Check English Draft', runCode(code('Check English Draft'), { input: nodes[llmEn.name], nodes }));
+  const trigger = wf.nodes.find(n => n.type === 'n8n-nodes-base.scheduleTrigger');
+  expectNext(wf, trigger.name, 'Read Topics from Google Sheets');
+  for (let pass = 0; pass < 10; pass++) {
+    set('Read Topics from Google Sheets', rows.map(r => ({ json: { ...r.json } })));
+    expectNext(wf, 'Read Topics from Google Sheets', 'Find First Pending Topic');
+    const found = exec('Find First Pending Topic', nodes['Read Topics from Google Sheets']);
+    if (found.length === 0) { result.output = result.output || { status: 'Nothing left to write' }; return finish(); }
+    result.topicsTried.push(found[0].json.topic);
 
-  expectNext(wf, 'Check English Draft', 'Generate Arabic Post with Gemini');
-  const llmAr = node('Generate Arabic Post with Gemini');
-  const promptAr = evalExpr(llmAr.parameters.text, { json: nodes['Check English Draft'][0].json, nodes });
-  geminiCalls.push({ node: llmAr.name, prompt: promptAr });
-  result.promptAr = promptAr;
-  set(llmAr.name, [{ json: { text: opts.ar } }]);
-  expectNext(wf, llmAr.name, 'Combine English and Arabic');
-  set('Combine English and Arabic', runCode(code('Combine English and Arabic'), { input: nodes[llmAr.name], nodes }));
-  result.combined = nodes['Combine English and Arabic'][0].json;
+    // ---- existing posts + duplicate check ----
+    expectNext(wf, 'Find First Pending Topic', 'List Existing Blog Posts');
+    const slugs = Array.isArray(opts.githubList) ? opts.githubList : OTHER_SLUGS;
+    // On failure the GitHub node (continueRegularOutput) outputs { error: '<message>' }.
+    const listItems = opts.githubList === 'error'
+      ? [{ json: { error: 'Bad credentials' } }]
+      : slugs.map(s => ({ json: { name: s + '.md', path: 'content/blog/' + s + '.md', type: 'file' } }));
+    set('List Existing Blog Posts', listItems);
+    expectNext(wf, 'List Existing Blog Posts', 'Collect Existing Posts');
+    exec('Collect Existing Posts', listItems);
+    const plan = nodes['Collect Existing Posts'][0].json;
+    if (!result.plan) result.plan = plan;
+    expectNext(wf, 'Collect Existing Posts', 'If Duplicate Topic');
+    const dupOut = ifOutput(node('If Duplicate Topic'), plan, nodes);
+    set('If Duplicate Topic', nodes['Collect Existing Posts']);
+    if (dupOut === 0) {
+      expectNext(wf, 'If Duplicate Topic', 'Prepare Duplicate Sheet Update', 0);
+      exec('Prepare Duplicate Sheet Update', nodes['Collect Existing Posts']);
+      applySheet(nodes['Prepare Duplicate Sheet Update'][0].json);
+      expectNext(wf, 'Prepare Duplicate Sheet Update', 'Mark Topic as Duplicate in Sheet');
+      set('Mark Topic as Duplicate in Sheet', nodes['Prepare Duplicate Sheet Update']);
+      expectNext(wf, 'Mark Topic as Duplicate in Sheet', 'Read Topics from Google Sheets');
+      continue;
+    }
+    expectNext(wf, 'If Duplicate Topic', 'Generate English Post with Gemini', 1);
 
-  // ---- covers already used on the site (/blog/covers.json; on failure the HTTP node outputs { error }) ----
-  expectNext(wf, 'Combine English and Arabic', 'Read Used Cover Photos');
-  set('Read Used Cover Photos', [{ json: opts.usedCovers === 'error' ? { error: { message: '404' } } : (opts.usedCovers || { ids: [] }) }]);
-  result.usedCoversUrl = node('Read Used Cover Photos').parameters.url;
+    // ---- write, check, and rewrite until it passes or is skipped ----
+    let writeInput = plan;
+    let skipped = false;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const answer = nextAnswer();
+      const llmEn = node('Generate English Post with Gemini');
+      const promptEn = evalExpr(llmEn.parameters.text, { json: writeInput, nodes });
+      geminiCalls.push({ node: llmEn.name, prompt: promptEn });
+      result.prompts.push(promptEn);
+      if (!result.prompt) result.prompt = promptEn;
+      set(llmEn.name, [{ json: { text: answer.en } }]);
+      expectNext(wf, llmEn.name, 'Check English Draft');
+      exec('Check English Draft', nodes[llmEn.name]);
 
-  // ---- Unsplash search + "Has Unsplash Results?" ----
-  expectNext(wf, 'Read Used Cover Photos', 'Search Unsplash');
-  result.searchQuery = evalExpr(node('Search Unsplash').parameters.queryParameters.parameters[0].value, { nodes });
-  set('Search Unsplash', [{ json: opts.unsplash || { results: [] } }]);
-  const hasRes = node('Has Unsplash Results?').parameters.conditions.conditions[0];
-  const count = evalExpr(hasRes.leftValue, { json: nodes['Search Unsplash'][0].json, nodes });
-  if (typeof count !== 'number') throw new Error('Has Unsplash Results? left value is not a number: ' + count);
-  let unsplashOut;
-  if (count === 0) {
-    evalExpr(node('Search Unsplash Fallback').parameters.queryParameters.parameters[0].value, { nodes });
-    unsplashOut = set('Search Unsplash Fallback', [{ json: opts.fallbackUnsplash || { results: [] } }]);
-  } else unsplashOut = nodes['Search Unsplash'];
+      expectNext(wf, 'Check English Draft', 'Generate Arabic Post with Gemini');
+      const llmAr = node('Generate Arabic Post with Gemini');
+      const promptAr = evalExpr(llmAr.parameters.text, { json: nodes['Check English Draft'][0].json, nodes });
+      geminiCalls.push({ node: llmAr.name, prompt: promptAr });
+      result.promptsAr.push(promptAr);
+      if (!result.promptAr) result.promptAr = promptAr;
+      set(llmAr.name, [{ json: { text: answer.ar } }]);
+      expectNext(wf, llmAr.name, 'Combine English and Arabic');
+      exec('Combine English and Arabic', nodes[llmAr.name]);
+      result.combined = nodes['Combine English and Arabic'][0].json;
 
-  set('Process Unsplash Result', runCode(code('Process Unsplash Result'), { input: unsplashOut, nodes }));
-  expectNext(wf, 'Process Unsplash Result', 'Quality Gate');
-  set('Quality Gate', runCode(code('Quality Gate'), { input: nodes['Process Unsplash Result'], nodes }));
-  const gate = nodes['Quality Gate'][0].json;
-  result.gate = gate;
-  expectNext(wf, 'Quality Gate', 'If Quality Passed');
+      // ---- covers already used on the site (/blog/covers.json; on failure the HTTP node outputs { error }) ----
+      expectNext(wf, 'Combine English and Arabic', 'Read Used Cover Photos');
+      set('Read Used Cover Photos', [{ json: opts.usedCovers === 'error' ? { error: { message: '404' } } : (opts.usedCovers || { ids: [] }) }]);
+      result.usedCoversUrl = node('Read Used Cover Photos').parameters.url;
 
-  if (ifOutput(node('If Quality Passed'), gate, nodes) === 1) {
-    expectNext(wf, 'If Quality Passed', 'Prepare Review Sheet Update', 1);
-    set('Prepare Review Sheet Update', runCode(code('Prepare Review Sheet Update'), { input: [], nodes }));
-    result.sheet = nodes['Prepare Review Sheet Update'][0].json;
-    expectNext(wf, 'Prepare Review Sheet Update', 'Mark Topic as Needs Review in Sheet');
-    set('Mark Topic as Needs Review in Sheet', nodes['Prepare Review Sheet Update']);
-    expectNext(wf, 'Mark Topic as Needs Review in Sheet', 'Output Needs Review');
-    result.output = setOutput(node('Output Needs Review'), {}, nodes);
-    return result;
-  }
-  expectNext(wf, 'If Quality Passed', 'If Has Image', 0);
+      // ---- Unsplash search + "Has Unsplash Results?" ----
+      expectNext(wf, 'Read Used Cover Photos', 'Search Unsplash');
+      result.searchQuery = evalExpr(node('Search Unsplash').parameters.queryParameters.parameters[0].value, { nodes });
+      set('Search Unsplash', [{ json: opts.unsplash || { results: [] } }]);
+      const hasRes = node('Has Unsplash Results?').parameters.conditions.conditions[0];
+      const count = evalExpr(hasRes.leftValue, { json: nodes['Search Unsplash'][0].json, nodes });
+      if (typeof count !== 'number') throw new Error('Has Unsplash Results? left value is not a number: ' + count);
+      let unsplashOut;
+      if (count === 0) {
+        evalExpr(node('Search Unsplash Fallback').parameters.queryParameters.parameters[0].value, { nodes });
+        unsplashOut = set('Search Unsplash Fallback', [{ json: opts.fallbackUnsplash || { results: [] } }]);
+      } else unsplashOut = nodes['Search Unsplash'];
 
-  let toPush; // the item arriving at "Push Blog Post to GitHub"
-  if (gate.hasImage) {
-    const dl = node('Download Unsplash Image');
-    evalExpr(dl.parameters.url, { json: gate, nodes });
-    if (opts.imageStep === 'downloadError') {
-      set('Download Unsplash Image', [{ json: { error: { message: 'timeout' } } }]);
-      const [fallback] = next(wf, 'Download Unsplash Image', 1);
-      toPush = set(fallback, runCode(code(fallback), { input: nodes['Download Unsplash Image'], nodes }))[0];
-      result.imageError = toPush.json.imageError;
-    } else {
-      set('Download Unsplash Image', [{ json: gate, binary: { data: {} } }]);
-      if (next(wf, 'Download Unsplash Image', 0).includes('Track Unsplash Download')) {
-        result.trackUrl = evalExpr(node('Track Unsplash Download').parameters.url, { json: gate, nodes });
+      exec('Process Unsplash Result', unsplashOut);
+      expectNext(wf, 'Process Unsplash Result', 'Quality Gate');
+      exec('Quality Gate', nodes['Process Unsplash Result']);
+      const gate = nodes['Quality Gate'][0].json;
+      result.gate = gate;
+      expectNext(wf, 'Quality Gate', 'If Quality Passed');
+      if (ifOutput(node('If Quality Passed'), gate, nodes) === 0) break;
+
+      // ---- failed: rewrite or skip ----
+      expectNext(wf, 'If Quality Passed', 'Decide Retry', 1);
+      exec('Decide Retry', [{ json: gate }]);
+      const decision = nodes['Decide Retry'][0].json;
+      expectNext(wf, 'Decide Retry', 'Retry Writing?');
+      const retryOut = ifOutput(node('Retry Writing?'), decision, nodes);
+      // An IF node's true output (what $('Retry Writing?').first(0) reads): the item, or nothing.
+      set('Retry Writing?', retryOut === 0 ? [{ json: decision }] : []);
+      if (retryOut === 0) {
+        expectNext(wf, 'Retry Writing?', 'Generate English Post with Gemini', 0);
+        writeInput = decision;
+        continue;
       }
-      const img = node('Push Image to GitHub');
-      result.imagePath = evalExpr(img.parameters.filePath, { json: gate, nodes });
-      evalExpr(img.parameters.commitMessage, { json: gate, nodes });
-      if (opts.imageStep === 'pushError') {
-        // The GitHub node's continue-on-fail item: { error: '<message>' }
-        set('Push Image to GitHub', [{ json: { error: 'sha missing' } }]);
-        const [fallback] = next(wf, 'Push Image to GitHub', 1);
-        toPush = set(fallback, runCode(code(fallback), { input: nodes['Push Image to GitHub'], nodes }))[0];
+      expectNext(wf, 'Retry Writing?', 'Prepare Skipped Sheet Update', 1);
+      exec('Prepare Skipped Sheet Update', []);
+      applySheet(nodes['Prepare Skipped Sheet Update'][0].json);
+      expectNext(wf, 'Prepare Skipped Sheet Update', 'Mark Topic as Skipped in Sheet');
+      set('Mark Topic as Skipped in Sheet', nodes['Prepare Skipped Sheet Update']);
+      expectNext(wf, 'Mark Topic as Skipped in Sheet', 'Read Topics from Google Sheets');
+      skipped = true;
+      break;
+    }
+    if (skipped) continue;
+    const gate = result.gate;
+    expectNext(wf, 'If Quality Passed', 'If Has Image', 0);
+
+    let toPush; // the item arriving at "Push Blog Post to GitHub"
+    if (gate.hasImage) {
+      const dl = node('Download Unsplash Image');
+      evalExpr(dl.parameters.url, { json: gate, nodes });
+      if (opts.imageStep === 'downloadError') {
+        set('Download Unsplash Image', [{ json: { error: { message: 'timeout' } } }]);
+        const [fallback] = next(wf, 'Download Unsplash Image', 1);
+        toPush = exec(fallback, nodes['Download Unsplash Image'])[0];
         result.imageError = toPush.json.imageError;
       } else {
-        toPush = set('Push Image to GitHub', [{ json: { content: { path: result.imagePath }, commit: { sha: 'abc' } } }])[0];
+        set('Download Unsplash Image', [{ json: gate, binary: { data: {} } }]);
+        if (next(wf, 'Download Unsplash Image', 0).includes('Track Unsplash Download')) {
+          result.trackUrl = evalExpr(node('Track Unsplash Download').parameters.url, { json: gate, nodes });
+        }
+        const img = node('Push Image to GitHub');
+        result.imagePath = evalExpr(img.parameters.filePath, { json: gate, nodes });
+        evalExpr(img.parameters.commitMessage, { json: gate, nodes });
+        if (opts.imageStep === 'pushError') {
+          // The GitHub node's continue-on-fail item: { error: '<message>' }
+          set('Push Image to GitHub', [{ json: { error: 'sha missing' } }]);
+          const [fallback] = next(wf, 'Push Image to GitHub', 1);
+          toPush = exec(fallback, nodes['Push Image to GitHub'])[0];
+          result.imageError = toPush.json.imageError;
+        } else {
+          toPush = set('Push Image to GitHub', [{ json: { content: { path: result.imagePath }, commit: { sha: 'abc' } } }])[0];
+        }
       }
+    } else {
+      toPush = { json: gate };
     }
-  } else {
-    toPush = { json: gate };
-  }
 
-  const push = node('Push Blog Post to GitHub');
-  result.pushed = {
-    filePath: evalExpr(push.parameters.filePath, { json: toPush.json, nodes }),
-    fileContent: evalExpr(push.parameters.fileContent, { json: toPush.json, nodes }),
-    commitMessage: evalExpr(push.parameters.commitMessage, { json: toPush.json, nodes })
-  };
-  if (opts.pushError) {
-    set('Push Blog Post to GitHub', [{ json: { error: 'file already exists' } }]);
-    expectNext(wf, 'Push Blog Post to GitHub', 'GitHub Push Failed', 1);
-    const failed = node('GitHub Push Failed');
-    const failedJson = setOutput(failed, nodes['Push Blog Post to GitHub'][0].json, nodes);
-    set(failed.name, [{ json: failedJson }]);
-    expectNext(wf, failed.name, 'Fail Run on GitHub Error');
-    const stop = node('Fail Run on GitHub Error');
-    result.stopError = { type: stop.type, message: evalExpr(stop.parameters.errorMessage, { json: failedJson, nodes }), failedJson };
-    return result;
-  }
-  set('Push Blog Post to GitHub', [{ json: { content: { path: result.pushed.filePath } } }]);
+    const push = node('Push Blog Post to GitHub');
+    result.pushed = {
+      filePath: evalExpr(push.parameters.filePath, { json: toPush.json, nodes }),
+      fileContent: evalExpr(push.parameters.fileContent, { json: toPush.json, nodes }),
+      commitMessage: evalExpr(push.parameters.commitMessage, { json: toPush.json, nodes })
+    };
+    if (opts.pushError) {
+      set('Push Blog Post to GitHub', [{ json: { error: 'file already exists' } }]);
+      expectNext(wf, 'Push Blog Post to GitHub', 'GitHub Push Failed', 1);
+      const failed = node('GitHub Push Failed');
+      const failedJson = setOutput(failed, nodes['Push Blog Post to GitHub'][0].json, nodes);
+      set(failed.name, [{ json: failedJson }]);
+      expectNext(wf, failed.name, 'Fail Run on GitHub Error');
+      const stop = node('Fail Run on GitHub Error');
+      result.stopError = { type: stop.type, message: evalExpr(stop.parameters.errorMessage, { json: failedJson, nodes }), failedJson };
+      return finish();
+    }
+    set('Push Blog Post to GitHub', [{ json: { content: { path: result.pushed.filePath } } }]);
 
-  // ---- sheet first, then wait for the deploy, then IndexNow and Facebook ----
-  expectNext(wf, 'Push Blog Post to GitHub', 'Prepare Sheet Update', 0);
-  set('Prepare Sheet Update', runCode(code('Prepare Sheet Update'), { input: nodes['Push Blog Post to GitHub'], nodes }));
-  result.sheet = nodes['Prepare Sheet Update'][0].json;
-  expectNext(wf, 'Prepare Sheet Update', 'Mark Topic as Used in Sheet');
-  set('Mark Topic as Used in Sheet', nodes['Prepare Sheet Update']);
-  expectNext(wf, 'Mark Topic as Used in Sheet', 'Wait for Site Deploy');
-  set('Wait for Site Deploy', nodes['Mark Topic as Used in Sheet']); // a Wait node passes its input on
-  expectNext(wf, 'Wait for Site Deploy', 'Notify IndexNow');
-  const ix = node('Notify IndexNow');
-  const ixBody = evalExpr(ix.parameters.jsonBody, { json: nodes['Wait for Site Deploy'][0].json, nodes });
-  result.indexNow = { method: ix.parameters.method, url: ix.parameters.url, body: typeof ixBody === 'string' ? JSON.parse(ixBody) : ixBody };
-  set('Notify IndexNow', [{ json: opts.indexNowError ? { error: { message: '403 - Key not valid' } } : {} }]);
-  expectNext(wf, 'Notify IndexNow', 'Build Facebook Message');
-  const fb = node('Build Facebook Message');
-  result.facebookMessage = evalExpr(fb.parameters.assignments.assignments[0].value, { json: {}, nodes });
-  set('Build Facebook Message', [{ json: { facebookMessage: result.facebookMessage } }]);
-  expectNext(wf, 'Build Facebook Message', 'Post Blog to Facebook Page');
-  set('Post Blog to Facebook Page', [{ json: opts.facebookError ? { error: { message: 'token expired' } } : { id: '1_2' } }]);
-  expectNext(wf, 'Post Blog to Facebook Page', 'Output Success');
-  result.output = setOutput(node('Output Success'), {}, nodes);
-  return result;
+    // ---- sheet first, then wait for the deploy, then IndexNow and Facebook ----
+    expectNext(wf, 'Push Blog Post to GitHub', 'Prepare Sheet Update', 0);
+    exec('Prepare Sheet Update', nodes['Push Blog Post to GitHub']);
+    applySheet(nodes['Prepare Sheet Update'][0].json);
+    expectNext(wf, 'Prepare Sheet Update', 'Mark Topic as Used in Sheet');
+    set('Mark Topic as Used in Sheet', nodes['Prepare Sheet Update']);
+    expectNext(wf, 'Mark Topic as Used in Sheet', 'Wait for Site Deploy');
+    set('Wait for Site Deploy', nodes['Mark Topic as Used in Sheet']); // a Wait node passes its input on
+    expectNext(wf, 'Wait for Site Deploy', 'Notify IndexNow');
+    const ix = node('Notify IndexNow');
+    const ixBody = evalExpr(ix.parameters.jsonBody, { json: nodes['Wait for Site Deploy'][0].json, nodes });
+    result.indexNow = { method: ix.parameters.method, url: ix.parameters.url, body: typeof ixBody === 'string' ? JSON.parse(ixBody) : ixBody };
+    set('Notify IndexNow', [{ json: opts.indexNowError ? { error: { message: '403 - Key not valid' } } : {} }]);
+    expectNext(wf, 'Notify IndexNow', 'Build Facebook Message');
+    const fb = node('Build Facebook Message');
+    result.facebookMessage = evalExpr(fb.parameters.assignments.assignments[0].value, { json: {}, nodes });
+    set('Build Facebook Message', [{ json: { facebookMessage: result.facebookMessage } }]);
+    expectNext(wf, 'Build Facebook Message', 'Post Blog to Facebook Page');
+    set('Post Blog to Facebook Page', [{ json: opts.facebookError ? { error: { message: 'token expired' } } : { id: '1_2' } }]);
+    expectNext(wf, 'Post Blog to Facebook Page', 'Output Success');
+    result.output = setOutput(node('Output Success'), {}, nodes);
+    return finish();
+  }
+  throw new Error('run did not end after 10 passes');
 }
 
 module.exports = { runPipeline, REPO, FIXTURE_SLUGS, OTHER_SLUGS, SAMPLE_SLUG };
