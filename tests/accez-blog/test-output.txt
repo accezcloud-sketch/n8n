@@ -357,6 +357,7 @@ PASS skipped: Unsplash+
 PASS skipped: no description
 PASS skipped: brand logo
 PASS skipped: church
+PASS skipped: foreign-language document (7 Nov live run)
 PASS search: 20 results, safe content filter, landscape
 PASS new steps reuse the Unsplash login and never stop the run
 PASS English prompt asks for a concrete, non-religious photo subject
@@ -439,4 +440,4 @@ PASS Arabic template heading becomes "ممارسات ذوي الأداء الع�
 PASS Gemini returns a refusal or garbage: asked again, then skipped; no red run
 PASS every pending topic fails: each is skipped and the run ends quietly (no red run)
 
-394 checks, ALL PASSED
+395 checks, ALL PASSED

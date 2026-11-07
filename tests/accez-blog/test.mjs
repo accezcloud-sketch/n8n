@@ -486,7 +486,8 @@ for (const [label, p] of [
   ['wine', photo('wineEEEEEEE', 'two glasses of red wine on a table')], ['pork', photo('baconFFFFFF', 'bacon and eggs breakfast')],
   ['portrait shape', photo('tallGGGGGGG', 'a checklist on a desk', { width: 2000, height: 3000 })], ['small file', photo('smallHHHHHH', 'a checklist on a desk', { width: 800, height: 600 })],
   ['Unsplash+', photo('plusIIIIIII', 'a checklist on a desk', { premium: true })], ['no description', photo('nodescJJJJJ', '', { alt_description: null })],
-  ['brand logo', photo('logoKKKKKKK', 'a laptop showing a company logo')], ['church', photo('churchLLLLL', 'the inside of a church')]
+  ['brand logo', photo('logoKKKKKKK', 'a laptop showing a company logo')], ['church', photo('churchLLLLL', 'the inside of a church')],
+  ['foreign-language document (7 Nov live run)', photo('stampMMMMMM', 'A wooden rubber stamp resting on an open German legal document')]
 ]) {
   const x = run({ unsplash: { results: [p, notebook] } });
   ok(x.gate.photoId === 'noteBBBBBBB', 'skipped: ' + label);
